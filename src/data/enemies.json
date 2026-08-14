@@ -1,0 +1,7 @@
+{
+  "enemies": [
+    { "id": "grunt", "size": 18, "color": "#e4645a", "hpScale": 1, "speedScale": 1 },
+    { "id": "swarmer", "size": 12, "color": "#f07ab4", "hpScale": 0.4, "speedScale": 1.9 },
+    { "id": "brute", "size": 30, "color": "#8f6fd6", "hpScale": 6, "speedScale": 0.6 }
+  ]
+}

@@ -3,7 +3,7 @@ import { BALANCE } from '../constants/balance';
 import { SceneKey } from '../constants/keys';
 import { eventBus } from '../core/EventBus';
 import { ObjectPool } from '../core/ObjectPool';
-import { getWaveData } from '../data/schema';
+import { getEnemyData, getWaveData } from '../data/schema';
 import { Enemy } from '../entities/Enemy';
 import { Player } from '../entities/Player';
 import { Projectile } from '../entities/Projectile';
@@ -93,6 +93,12 @@ export class GameScene extends Phaser.Scene {
 
     this.player = new Player(this, width / 2, height / 2);
 
+    // Read once and passed down: the definitions decide what SpawnSystem may spawn, and the
+    // first of them is an arbitrary but real texture for pooled enemies to hold until they
+    // are given a type.
+    const enemyData = getEnemyData(this.registry);
+    const [firstEnemyDefinition] = enemyData.enemies;
+
     // A group per pooled type. Membership is fixed for the scene's life: the factory adds
     // each sprite once, at construction, and nothing ever leaves.
     const enemyGroup = this.physics.add.group();
@@ -102,7 +108,7 @@ export class GameScene extends Phaser.Scene {
     this.enemies = new ObjectPool<Enemy>(
       BALANCE.enemy.poolSize,
       () => {
-        const enemy = new Enemy(this);
+        const enemy = new Enemy(this, firstEnemyDefinition.id);
         enemyGroup.add(enemy);
         return enemy;
       },
@@ -138,7 +144,7 @@ export class GameScene extends Phaser.Scene {
     this.combat = new CombatSystem(this.player, this.enemies, this.projectiles, eventBus);
     this.pickups = new PickupSystem(this.player, this.gems, eventBus);
     this.systems.push(
-      new SpawnSystem(getWaveData(this.registry), this.enemies, eventBus),
+      new SpawnSystem(getWaveData(this.registry, enemyData), enemyData, this.enemies, eventBus),
       this.combat,
       this.pickups,
     );

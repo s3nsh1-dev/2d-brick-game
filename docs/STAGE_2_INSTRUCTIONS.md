@@ -43,14 +43,14 @@ If any of these fail, stop and report. Do not begin Stage 2 on a broken baseline
 
 ## 1. Status ledger — what exists, what does not
 
-**As of 2026-08-14, no Stage 2 feature is implemented.** The branch is called `feature/stage2`
-and contains only documentation and wave tuning. Verify it yourself in one command:
+**Pass A landed 2026-08-14. Passes B–E are not implemented.** Verify what is still missing in
+one command:
 
 ```bash
-grep -rniE "upgrade|audiosystem|vfxsystem|statblock|savestore|xpcurve|animator|particle|shake|knockback|swarmer|brute|localstorage|enemies\.json" src/
+grep -rniE "upgrade|audiosystem|vfxsystem|statblock|savestore|xpcurve|animator|particle|shake|knockback|localstorage" src/
 ```
 
-Zero hits today. `src/data/schema.ts` still reads `export const enemyIdSchema = z.literal('grunt')`.
+Zero hits today. `swarmer`, `brute` and `enemies.json` now hit, which is Pass A.
 
 ### 1a. Foundations already in place — build on these, do not rebuild them
 
@@ -75,11 +75,11 @@ Tick a row in this table **in the same commit** as the code that lands it.
 
 | Status | Deliverable | Pass | Evidence it is not done |
 |---|---|---|---|
-| ☐ | `enemies.json` + `EnemyDefinition` + its zod schema | A | File does not exist |
-| ☐ | `enemyIdSchema` widened from a literal to a union validated against `enemies.json` | A | Still `z.literal('grunt')` |
-| ☐ | Per-definition texture, body size and colour | A | `Enemy` constructor hardcodes `TextureKey.ENEMY`; size comes from `BALANCE.enemy.size` |
-| ☐ | Swarmer (fast, fragile) and brute (slow, tanky) as **definitions** | A | Only `grunt` exists |
-| ☐ | **A real difficulty ramp and a real fail state** | A | Standing still, the player does not die. See §3 |
+| ✅ | `enemies.json` + `EnemyDefinition` + its zod schema | A | Landed 2026-08-14 |
+| ✅ | `enemyIdSchema` widened from a literal to a union validated against `enemies.json` | A | Landed 2026-08-14 — the wave schema is now a factory over the parsed ids |
+| ✅ | Per-definition texture, body size and colour | A | Landed 2026-08-14 — `Enemy.spawn` takes a definition; `BALANCE.enemy.size`/`.color` are gone |
+| ✅ | Swarmer (fast, fragile) and brute (slow, tanky) as **definitions** | A | Landed 2026-08-14 |
+| ✅ | **A real difficulty ramp and a real fail state** | A | Landed 2026-08-14 — 10 waves; a stationary player dies in wave 3, measured in-browser |
 | ☐ | Per-frame textures + idle / walk / hit animations | B | No `AnimKey`, no `anims.create` anywhere |
 | ☐ | `Animator` component | B | File does not exist |
 | ☐ | SFX: shoot, hit, enemy death, player damage, pickup, level-up | B | No `AudioSystem`, no audio loaded |
@@ -118,9 +118,16 @@ By contrast, Stage 3 changes what the program *is*. Do not borrow from it. See �
 
 ---
 
-## 3. The mandatory balance fix
+## 3. The mandatory balance fix — **done in Pass A**
 
 **This was previously optional. It is not.**
+
+> **Correction, 2026-08-14.** The premise below was measured and is wrong in detail. On the
+> Stage 1 table a stationary player did **not** survive past wave 5 at full health: it died
+> in **wave 4**, having already lost 40 HP during wave 3 (measured in-browser, and
+> reproduced independently in a Node model of the frame loop). The conclusion still held —
+> dying in wave 4 of a 5-wave table that then plateaus is not a ramp — so the fix was done
+> as written. The old claim is left below only so the correction has something to point at.
 
 Standing completely still, the player does not die. Auto-aim clears the swarm at roughly the
 rate it spawns: the weapon does ~37 dps against wave-5 grunts at 20–80 effective HP, arriving
@@ -132,12 +139,18 @@ Pass D ships an XP curve and upgrade pacing, and both are answers to a difficult
 numbers that mean nothing, and you will not find out until you have built the whole
 progression system on top of them. So the curve is fixed first, in Pass A, before any of it.
 
-Targets, so the fix is checkable rather than a matter of taste:
+Targets, so the fix is checkable rather than a matter of taste — **all four met, see the
+measurements recorded after each**:
 
-- A player who never moves **dies by wave 3**.
-- A player who moves competently but takes no upgrades **dies somewhere in waves 5–8**.
+- A player who never moves **dies by wave 3**. ✅ Measured in-browser: died in wave 3 with 20
+  enemies alive. The Node model agrees on all 5 seeds.
+- A player who moves competently but takes no upgrades **dies somewhere in waves 5–8**. ✅
+  Modelled, not played: a kiting bot in the Node model dies in waves 5–6 across 5 seeds. A
+  human is likely a wave or two later, still inside the band. This is the one target
+  verified by proxy rather than by hand.
 - The wave table **extends past 5 and escalates on the last entry** rather than holding. Ten
-  waves is a reasonable target.
+  waves is a reasonable target. ✅ Ten waves; wave 10 runs at roughly 7× the weapon's clear
+  rate, against wave 9's 4×.
 - Escalation comes from `waves.json` — counts, intervals, `hpScale`, `speedScale`, and the mix
   of enemy definitions. Base stats stay in `balance.ts`. That split is architectural; do not
   blur it to make the tuning easier.
@@ -288,6 +301,20 @@ cheap operation. Pass A is what makes that row false; update it in the same comm
 
 **Done when:** a fourth enemy type is two JSON edits; a stationary player dies by wave 3; all
 four checks pass.
+
+**Landed 2026-08-14. The architecture test came out at two scene edits, not one:**
+
+- `PreloadScene` — expected and predicted above. It now loops the definitions instead of
+  baking four fixed textures.
+- `GameScene` — **not** predicted. `SpawnSystem` has to resolve `entry.enemy` to a
+  definition, and the only thing that can hand it the definitions is the scene that builds
+  it, so its constructor took one more argument. The pooled `Enemy` also needs a real
+  texture at construction, before any wave has asked for a type, so the pool factory passes
+  the first definition's id. Both are one-time; neither recurs when a fourth type is added.
+- **Zero system edits beyond `SpawnSystem`**, which is the file whose job this is.
+
+The definition of done holds: adding a fourth enemy type is an entry in `enemies.json` and a
+spawn entry in `waves.json`, with no code change of any kind.
 
 ### Pass B — presentation
 

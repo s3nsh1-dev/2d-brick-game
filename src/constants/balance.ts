@@ -39,9 +39,9 @@ export const BALANCE = {
     poolSize: 120,
   },
 
+  // Size and colour are per-type and live in `data/enemies.json`; what remains here is the
+  // unit enemy every definition is a multiple of.
   enemy: {
-    size: 18,
-    color: 0xe4645a,
     baseHp: 20,
     baseSpeed: 62,
     contactDamage: 8,

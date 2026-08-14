@@ -2,21 +2,21 @@
 
 ## Current stage
 
-**Stage 1 — complete. Stage 2 not started.** Both Stage 1 passes are done; `typecheck`,
-`lint`, `test` (50 specs across 5 files) and `build` pass clean, and the game runs with an
-empty browser console. Last verified 2026-08-14.
+**Stage 2 — Pass A complete. Passes B–E not started.** `typecheck`, `lint`, `test` (50 specs
+across 5 files) and `build` pass clean, and the game runs with an empty browser console. Last
+verified 2026-08-14.
 
-The branch is called `feature/stage2` and contains no Stage 2 code — only documentation and
-wave tuning. Read `docs/STAGE_2_INSTRUCTIONS.md` for what Stage 2 is and what it must deliver
-before Stage 3 can begin.
+Pass A added data-driven enemy definitions and the difficulty curve. Read
+`docs/STAGE_2_INSTRUCTIONS.md` for the remaining passes and what Stage 2 must deliver before
+Stage 3 can begin.
 
 Stage 1 is: player movement, auto-aim weapon firing pooled projectiles, one enemy type with
 chase AI, wave-based spawning driven by JSON, collision damage in both directions, XP gems,
 an HP bar and wave counter in a parallel HUD scene, and game over with restart.
 
-Everything else — sprites, audio, particles, screen shake, upgrades, enemy variety,
-persistence, mobile controls, settings, i18n — is Stage 2 or Stage 3. It is not built, not
-stubbed and not prepared for. See `AGENTS.md` for the stage table.
+Everything else — sprites, audio, particles, screen shake, upgrades, persistence, mobile
+controls, settings, i18n — is a later Stage 2 pass or Stage 3. It is not built, not stubbed
+and not prepared for. See `AGENTS.md` for the stage table.
 
 ## The shape of a frame
 
@@ -43,7 +43,7 @@ building past the stage. This is the one place the scene touches an entity per f
 | Scene | Job | Leaves to |
 |---|---|---|
 | `BootScene` | Nothing yet. The seam where boot-time configuration will go. | `PreloadScene` |
-| `PreloadScene` | Loads `waves.json`, validates it, bakes the four rectangle textures. | `MenuScene` |
+| `PreloadScene` | Loads and validates `enemies.json` and `waves.json`, bakes one texture per enemy definition plus the player, projectile and gem. | `MenuScene` |
 | `MenuScene` | Title card. Any key or click starts a run. | `GameScene` |
 | `GameScene` | Builds the world, owns the pools and systems, runs the frame. | `GameOverScene` |
 | `HUDScene` | Runs in parallel with `GameScene`. Draws HP, wave and XP. | stopped by `GameScene` |
@@ -144,25 +144,49 @@ reports on it.
 
 ## Content vs balance
 
-Two files hold numbers, and the split is deliberate:
+Three files hold numbers, and the split is deliberate. A finished enemy stat is
+**base × definition × wave**:
 
-- **`src/constants/balance.ts`** — base stats and tunables. The grunt's base HP and speed,
-  the weapon's damage and cooldown, pool sizes, colours, sizes, the arena dimensions.
-- **`src/data/waves.json`** — escalation. Per wave: a duration, and a list of spawn entries
-  giving an enemy id, a count, an interval, and `hpScale`/`speedScale` multipliers applied
-  against the base stats.
+- **`src/constants/balance.ts`** — the unit enemy and the rest of the tunables. Base HP and
+  speed, contact damage, the weapon's damage and cooldown, pool sizes, the arena dimensions.
+- **`src/data/enemies.json`** — how the types differ from one another. Per definition: an
+  `id`, a body `size`, a hex `color`, and `hpScale`/`speedScale` against the base. The
+  grunt is 1×1; the swarmer is fast and fragile, the brute slow and tanky.
+- **`src/data/waves.json`** — escalation. Per wave: a duration, and spawn entries giving an
+  enemy id, a count, an interval, and a further `hpScale`/`speedScale`.
 
-Base stats are balance. Escalation is content. Only content belongs in a data file.
+Base stats are balance. Type identity and escalation are content, and only content belongs
+in a data file.
 
-`waves.json` is validated by `src/data/schema.ts` with `.parse()`, never `.safeParse()`, in
-`PreloadScene`. Malformed content crashes at boot rather than producing an empty wave 7.
+Both JSON files are validated by `src/data/schema.ts` with `.parse()`, never `.safeParse()`,
+in `PreloadScene`. Malformed content crashes at boot rather than producing an empty wave 7.
+Enemies are parsed first because the wave schema is a **factory**: the `enemy` field is a
+union over the ids `enemies.json` actually defines, so a wave naming a type that does not
+exist fails at boot with the exact path and the list of ids that would have worked.
+
+### The shape of the curve
+
+The weapon's ceiling is 12 damage every 0.32s — 37.5 dps. A wave whose incoming HP/second
+exceeds that builds a backlog, and the backlog is what reaches the player. The table is
+tuned against that number rather than by eye:
+
+- Waves 1–2 stay under the ceiling, so nothing reaches a player who never moves.
+- Wave 3 spikes over it in a burst, which is what kills a stationary player.
+- Waves 4–7 exceed it by a widening margin, but in bursts short enough that a moving player
+  clears the backlog in the lull that follows.
+- Waves 8–10 are continuously over it; wave 10 runs at roughly seven times the weapon's
+  clear rate and is not meant to be survivable without the progression Pass D adds.
+
+Slow mass (grunts, brutes) punishes standing still and is evadable by a moving player.
+Swarmers are the pressure on a moving player, which is why their `speedScale` climbs late
+rather than early.
 
 ## Which file do I touch?
 
 | I want to… | Touch |
 |---|---|
 | Add an entity | A new file in `src/entities/`, its stats in `constants/balance.ts`, a pool and group in `GameScene.create()`. |
-| Add an enemy type | **Not yet a cheap operation.** `enemyIdSchema` is `z.literal('grunt')`, `Enemy`'s texture and body size are fixed at construction from `balance.ts`, and a second class would need its own pool and group in `GameScene.create()`. Stage 2 Pass A makes this a two-JSON-file change; today it is a refactor. See `docs/STAGE_2_INSTRUCTIONS.md`. |
+| Add an enemy type | `src/data/enemies.json`, then name it in `src/data/waves.json`. Nothing else. The definition's `id` is its texture key, `PreloadScene` bakes whatever the file lists, and one `Enemy` class serves every type. A new enemy *class* is a different question — it would need its own pool and group in `GameScene.create()`, which is why the swarmer and the brute are definitions instead. |
 | Add a system | A new file in `src/systems/` implementing `System`, constructed and pushed in `GameScene.create()`. |
 | Add a wave | `src/data/waves.json`. Nothing else. |
 | Change how hard the game is | `src/constants/balance.ts` for base stats, `waves.json` for the curve. |

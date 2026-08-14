@@ -1,12 +1,13 @@
 import * as Phaser from 'phaser';
 import { BALANCE } from '../constants/balance';
 import { DataKey, SceneKey, TextureKey } from '../constants/keys';
-import { readWaveDataFromCache } from '../data/schema';
-// Imported for its URL rather than its contents so Vite serves and fingerprints the file,
-// and Phaser's loader stays the single path by which game content enters the game.
+import { readEnemyDataFromCache, readWaveDataFromCache } from '../data/schema';
+// Imported for their URLs rather than their contents so Vite serves and fingerprints the
+// files, and Phaser's loader stays the single path by which game content enters the game.
+import enemiesUrl from '../data/enemies.json?url';
 import wavesUrl from '../data/waves.json?url';
 
-// Loads and validates content, then bakes the Stage 1 art.
+// Loads and validates content, then bakes the art.
 //
 // Phaser 4 removed `Create.GenerateTexture` and `TextureManager.generate`, but
 // `Graphics#generateTexture` survives, and a solid fill is exactly what it is good at.
@@ -18,15 +19,20 @@ export class PreloadScene extends Phaser.Scene {
 
   public preload(): void {
     this.load.json(DataKey.WAVES, wavesUrl);
+    this.load.json(DataKey.ENEMIES, enemiesUrl);
   }
 
   public create(): void {
     // `.parse`, not `.safeParse`: bad content must take the boot sequence down here, in
     // front of the developer, rather than surface as an empty wave several minutes in.
-    this.registry.set(DataKey.WAVES, readWaveDataFromCache(this.cache));
+    //
+    // Enemies first, and not only for tidiness: the wave schema's enemy id is a union over
+    // the ids this file defines, so it cannot be built until they are known.
+    const enemies = readEnemyDataFromCache(this.cache);
+    this.registry.set(DataKey.ENEMIES, enemies);
+    this.registry.set(DataKey.WAVES, readWaveDataFromCache(this.cache, enemies));
 
     this.bakeSquareTexture(TextureKey.PLAYER, BALANCE.player.size, BALANCE.player.color);
-    this.bakeSquareTexture(TextureKey.ENEMY, BALANCE.enemy.size, BALANCE.enemy.color);
     this.bakeSquareTexture(
       TextureKey.PROJECTILE,
       BALANCE.projectile.size,
@@ -34,11 +40,21 @@ export class PreloadScene extends Phaser.Scene {
     );
     this.bakeSquareTexture(TextureKey.XP_GEM, BALANCE.gem.size, BALANCE.gem.color);
 
+    // One texture per enemy definition, keyed by the definition's id. This loop is the
+    // reason a fourth enemy type needs no code: it bakes whatever `enemies.json` lists.
+    for (const enemy of enemies.enemies) {
+      this.bakeSquareTexture(
+        enemy.id,
+        enemy.size,
+        Phaser.Display.Color.HexStringToColor(enemy.color).color,
+      );
+    }
+
     this.scene.start(SceneKey.MENU);
   }
 
   /** Bakes a solid square into a texture, so entities can be plain sprites. */
-  private bakeSquareTexture(key: TextureKey, size: number, color: number): void {
+  private bakeSquareTexture(key: string, size: number, color: number): void {
     const graphics = this.add.graphics();
     graphics.fillStyle(color, 1);
     graphics.fillRect(0, 0, size, size);

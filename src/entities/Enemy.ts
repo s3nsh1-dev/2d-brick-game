@@ -2,11 +2,12 @@ import * as Phaser from 'phaser';
 import { Health } from '../components/Health';
 import { BALANCE } from '../constants/balance';
 import { Depth } from '../constants/depths';
-import { TextureKey } from '../constants/keys';
+import type { EnemyDefinition } from '../data/schema';
 
-// A grunt. Holds its own state and nothing else — it does not know where the player is or
+// Any enemy. Holds its own state and nothing else — it does not know where the player is or
 // how to find them. CombatSystem steers it. That is what keeps entities free of global
-// lookups and makes a second enemy type in Stage 2 a data change, not a rewrite.
+// lookups, and it is why the swarmer and the brute are rows in `enemies.json` rather than
+// subclasses: everything that differs between the types arrives through `spawn`.
 
 export class Enemy extends Phaser.Physics.Arcade.Sprite {
   public readonly health = new Health(BALANCE.enemy.baseHp);
@@ -16,8 +17,13 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   private currentSpeed: number = BALANCE.enemy.baseSpeed;
   private contactCooldown = 0;
 
-  public constructor(scene: Phaser.Scene) {
-    super(scene, 0, 0, TextureKey.ENEMY);
+  /**
+   * @param texture Any baked enemy texture. The pool builds every enemy before a wave has
+   * asked for a type, and a sprite must have a real texture from the start or Phaser warns
+   * and draws its missing-texture green. `spawn` overwrites it.
+   */
+  public constructor(scene: Phaser.Scene, texture: string) {
+    super(scene, 0, 0, texture);
 
     scene.add.existing(this);
     scene.physics.add.existing(this);
@@ -35,10 +41,23 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     return this.contactCooldown <= 0;
   }
 
-  public spawn(x: number, y: number, maxHp: number, speed: number): void {
+  /** `maxHp` and `speed` are already scaled; the definition supplies everything else. */
+  public spawn(
+    x: number,
+    y: number,
+    definition: EnemyDefinition,
+    maxHp: number,
+    speed: number,
+  ): void {
     this.currentSpeed = speed;
     this.contactCooldown = 0;
     this.health.reset(maxHp);
+
+    this.setTexture(definition.id);
+    // `setTexture` resizes the sprite but not the physics body, so a pooled brute reused as
+    // a swarmer would keep hitting at the brute's 30px reach.
+    this.setBodySize(definition.size, definition.size);
+
     this.enableBody(true, x, y, true, true);
   }
 

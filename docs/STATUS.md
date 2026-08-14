@@ -6,16 +6,17 @@ month or an agent picking up a task, start here.
 
 | | |
 |---|---|
-| **Stage** | 1 of 3 — **complete**. Stage 2 **not started** |
-| **Next** | [`STAGE_2_INSTRUCTIONS.md`](STAGE_2_INSTRUCTIONS.md) — a complete, self-contained brief. Stage 3 is gated behind it |
+| **Stage** | 2 of 3 — **Pass A complete**, Passes B–E not started. Stage 1 complete |
+| **Next** | [`STAGE_2_INSTRUCTIONS.md`](STAGE_2_INSTRUCTIONS.md) §7 Pass B — presentation. Stage 3 is gated behind the whole stage |
 | **Last verified** | 2026-08-14 |
 | **Health** | `typecheck` ✅ · `lint` ✅ 0 warnings · `test` ✅ 50 passed / 5 files · `build` ✅ 0 warnings · browser console ✅ empty |
-| **Size** | 31 TypeScript files, ~2,140 lines |
+| **Size** | 31 TypeScript files, ~2,180 lines |
 | **Runtime dependencies** | `phaser@4.2.1`, `zod@4` — nothing else |
-| **Assets** | None. All art is coloured rectangles generated at boot |
+| **Assets** | None. All art is coloured rectangles generated at boot, one per enemy definition |
 
-> The branch is named `feature/stage2` and holds no Stage 2 code — its three commits are
-> documentation and wave tuning. Do not read the branch name as progress.
+> Stage 2 is one pass of five in. Read the ledger in
+> [`STAGE_2_INSTRUCTIONS.md`](STAGE_2_INSTRUCTIONS.md) §1b for what is and is not built,
+> rather than inferring progress from the branch name.
 
 ---
 
@@ -28,8 +29,9 @@ Everything listed here is implemented, verified in a browser, and covered by the
 | **Movement** | WASD, normalised so diagonals aren't faster, clamped to the arena | `entities/Player.ts`, `components/Controls.ts` |
 | **Auto-fire** | Targets the nearest enemy within range; holds fire when none is in range | `systems/CombatSystem.ts`, `components/Weapon.ts` |
 | **Projectiles** | Pooled, travel at fixed speed, expire on a lifetime | `entities/Projectile.ts` |
-| **Enemies** | One type. Walk in from a ring outside the arena, chase directly, no pathfinding | `entities/Enemy.ts`, `systems/CombatSystem.ts` |
-| **Waves** | 5 waves, 7 spawn entries, JSON-driven with per-wave HP and speed multipliers. Holds on the final wave | `data/waves.json`, `systems/SpawnSystem.ts` |
+| **Enemies** | Three types — grunt, swarmer, brute — as **definitions**, not classes. Walk in from a ring outside the arena, chase directly, no pathfinding | `data/enemies.json`, `entities/Enemy.ts`, `systems/CombatSystem.ts` |
+| **Waves** | 10 waves, 27 spawn entries, JSON-driven with per-type and per-wave HP and speed multipliers. Holds on the final wave | `data/waves.json`, `systems/SpawnSystem.ts` |
+| **Difficulty** | A real fail state. A stationary player dies in wave 3; the curve is tuned against the weapon's 37.5 dps clear rate | `data/waves.json` |
 | **Damage** | Both directions. Enemy contact damage is on a per-enemy cooldown, not per frame | `systems/CombatSystem.ts`, `components/Health.ts` |
 | **XP gems** | Drop on death, pulled in within magnet range, increment a counter | `systems/PickupSystem.ts`, `entities/XpGem.ts` |
 | **HUD** | Health bar, wave counter, XP counter — in a parallel scene holding no game references | `scenes/HUDScene.ts` |
@@ -53,14 +55,15 @@ These were established by measurement, not inspection. If you change the relevan
 
 | # | Issue | Impact | Owner |
 |---|---|---|---|
-| 1 | **Difficulty plateaus.** Standing completely still, the player does not die. Auto-fire clears the swarm at roughly the rate it spawns (~37 dps against enemies arriving one per 0.6s from ~640px out), so almost nothing reaches contact range. | The game has no real fail state yet. Any upgrade or XP-curve tuning would be balanced against a difficulty ramp that does not exist. | **Stage 2 Pass A — now mandatory, not optional.** Progression cannot be tuned against a flat curve |
-| 2 | 20 browser-test artefacts (`.playwright-mcp/*`, `menu.png`) are tracked in git and not in `.gitignore`. | Repo noise; every clone carries ~20 screenshots. | `git rm -r --cached .playwright-mcp menu.png` and add both to `.gitignore`. Standalone chore, not part of any stage |
-| 3 | No `EnemyDefinition` abstraction — `Enemy` takes loose `(maxHp, speed)` arguments and its texture and body size are fixed at construction. | Fine for one enemy type; the first thing Stage 2 Pass A changes. | Stage 2 Pass A |
+| 1 | 20 browser-test artefacts (`.playwright-mcp/*`, `menu.png`) are tracked in git and not in `.gitignore`. | Repo noise; every clone carries ~20 screenshots. | `git rm -r --cached .playwright-mcp menu.png` and add both to `.gitignore`. Standalone chore, not part of any stage |
+| 2 | The "moves competently" difficulty target is verified by a **model**, not by play. A kiting bot in a Node reproduction of the frame loop dies in waves 5–6; nobody has sat down and played it. | The stationary-player target was measured in the real browser and is solid. The moving-player band is an estimate, and Pass D will retune against it anyway. | Whoever plays it first. Worth ten minutes before Pass D |
 
 None of these block play.
 
-**Fixed and removed from this list:** `docs/CURRENT_ISSUE.md` (described a `PreloadScene`
-crash that no longer exists) was deleted on 2026-08-14.
+**Fixed and removed from this list:** the difficulty plateau (a stationary player now dies in
+wave 3) and the missing `EnemyDefinition` abstraction, both closed by Stage 2 Pass A on
+2026-08-14. `docs/CURRENT_ISSUE.md` (described a `PreloadScene` crash that no longer exists)
+was deleted the same day.
 
 ---
 
@@ -99,8 +102,8 @@ Effort is rough: **S** ≈ under an hour, **M** ≈ a focused session, **L** ≈
 
 | Upgrade | What it adds | Touches | Stresses | Effort |
 |---|---|---|---|---|
-| **Data-driven enemies** | `enemies.json`; swarmer and brute as *definitions*, not new classes | `data/`, `entities/Enemy.ts`, `scenes/PreloadScene.ts`, `systems/SpawnSystem.ts` | "Content is data" — proves a new enemy costs zero code | **M** |
-| **Texture atlas + animations** | Replaces baked rectangles with a packed atlas; idle/walk/hit states | `scenes/PreloadScene.ts`, new `components/Animator.ts`, `constants/keys.ts` | Nothing structural — mostly a preload change | **M** |
+| ~~**Data-driven enemies**~~ | **Done, Pass A (2026-08-14).** `enemies.json`; swarmer and brute as definitions, not classes. Adding a fourth type is two JSON edits | — | It held: the only code edits were one-time wiring in `PreloadScene` and `GameScene` | — |
+| **Per-frame textures + animations** | Replaces static baked rectangles with baked frames; idle/walk/hit states. **Not an atlas** — see `STAGE_2_INSTRUCTIONS.md` §4a | `scenes/PreloadScene.ts`, new `components/Animator.ts`, `constants/keys.ts` | Nothing structural — mostly a preload change | **M** |
 | **Audio** | SFX for shoot/hit/death/pickup, one music loop, volume control | New `systems/AudioSystem.ts` | "Presentation is event-driven" — audio may only *subscribe*, never be called by gameplay | **M** |
 | **VFX** | Hit sparks, death bursts, floating damage numbers | New `systems/VfxSystem.ts`, new `entities/FloatingText.ts` | Pooling — emitters must be created once at init, never per hit | **M** |
 | **Game feel** | Screen shake, damage flash, knockback, hit-stop | `systems/CombatSystem.ts` (knockback, hit-stop) and `VfxSystem` (shake, flash) | The gameplay/presentation line — knockback and hit-stop move things, so they are **not** presentation | **S** |

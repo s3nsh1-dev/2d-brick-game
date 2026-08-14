@@ -1,7 +1,7 @@
 import { BALANCE } from '../constants/balance';
 import type { EventBus, GameEvents } from '../core/EventBus';
 import type { ObjectPool } from '../core/ObjectPool';
-import type { SpawnEntry, WaveData } from '../data/schema';
+import type { EnemyData, EnemyDefinition, SpawnEntry, WaveData } from '../data/schema';
 import type { Enemy } from '../entities/Enemy';
 import type { System } from './System';
 
@@ -19,14 +19,20 @@ export class SpawnSystem implements System {
   private readonly entryTimers: number[];
   private readonly entrySpawned: number[];
 
+  /** Keyed by id so a spawn entry resolves its type without scanning the definitions. */
+  private readonly definitions: ReadonlyMap<string, EnemyDefinition>;
+
   public constructor(
     private readonly waves: WaveData,
+    enemyData: EnemyData,
     private readonly enemies: ObjectPool<Enemy>,
     private readonly bus: EventBus<GameEvents>,
   ) {
     const widestWave = Math.max(...this.waves.waves.map((wave) => wave.spawns.length));
     this.entryTimers = new Array<number>(widestWave).fill(0);
     this.entrySpawned = new Array<number>(widestWave).fill(0);
+
+    this.definitions = new Map(enemyData.enemies.map((enemy) => [enemy.id, enemy]));
   }
 
   /** 1-based, for display. */
@@ -92,6 +98,14 @@ export class SpawnSystem implements System {
   }
 
   private spawn(entry: SpawnEntry): void {
+    // Unreachable: the wave schema is a union built from these very ids, so an entry that
+    // named an unknown type would have failed at boot. Resolved before acquiring, so an
+    // impossible entry cannot leak a pooled enemy.
+    const definition = this.definitions.get(entry.enemy);
+    if (definition === undefined) {
+      return;
+    }
+
     const enemy = this.enemies.acquire();
     if (enemy === undefined) {
       return;
@@ -122,11 +136,14 @@ export class SpawnSystem implements System {
         break;
     }
 
+    // base × type × wave. The definition says how a brute differs from a grunt; the wave
+    // says how far into the run this one is.
     enemy.spawn(
       x,
       y,
-      BALANCE.enemy.baseHp * entry.hpScale,
-      BALANCE.enemy.baseSpeed * entry.speedScale,
+      definition,
+      BALANCE.enemy.baseHp * definition.hpScale * entry.hpScale,
+      BALANCE.enemy.baseSpeed * definition.speedScale * entry.speedScale,
     );
   }
 }

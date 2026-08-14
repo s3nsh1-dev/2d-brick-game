@@ -12,9 +12,10 @@ export const SceneKey = {
 
 export type SceneKey = (typeof SceneKey)[keyof typeof SceneKey];
 
+// Enemy textures are not named here. There is one per definition in `enemies.json` and the
+// definition's own id is the key, so a new enemy type stays a content change.
 export const TextureKey = {
   PLAYER: 'player',
-  ENEMY: 'enemy',
   PROJECTILE: 'projectile',
   XP_GEM: 'xpGem',
 } as const;
@@ -23,6 +24,7 @@ export type TextureKey = (typeof TextureKey)[keyof typeof TextureKey];
 
 export const DataKey = {
   WAVES: 'waves',
+  ENEMIES: 'enemies',
 } as const;
 
 export type DataKey = (typeof DataKey)[keyof typeof DataKey];
