@@ -6,12 +6,16 @@ month or an agent picking up a task, start here.
 
 | | |
 |---|---|
-| **Stage** | 1 of 3 — **complete** |
+| **Stage** | 1 of 3 — **complete**. Stage 2 **not started** |
+| **Next** | [`STAGE_2_INSTRUCTIONS.md`](STAGE_2_INSTRUCTIONS.md) — a complete, self-contained brief. Stage 3 is gated behind it |
 | **Last verified** | 2026-08-14 |
-| **Health** | `typecheck` ✅ · `lint` ✅ 0 warnings · `test` ✅ 50 passed · `build` ✅ 0 warnings · browser console ✅ empty |
-| **Size** | 31 TypeScript files, ~2,100 lines |
+| **Health** | `typecheck` ✅ · `lint` ✅ 0 warnings · `test` ✅ 50 passed / 5 files · `build` ✅ 0 warnings · browser console ✅ empty |
+| **Size** | 31 TypeScript files, ~2,140 lines |
 | **Runtime dependencies** | `phaser@4.2.1`, `zod@4` — nothing else |
 | **Assets** | None. All art is coloured rectangles generated at boot |
+
+> The branch is named `feature/stage2` and holds no Stage 2 code — its three commits are
+> documentation and wave tuning. Do not read the branch name as progress.
 
 ---
 
@@ -47,14 +51,16 @@ These were established by measurement, not inspection. If you change the relevan
 
 ## 2. Known issues and rough edges
 
-| # | Issue | Impact | Suggested owner |
+| # | Issue | Impact | Owner |
 |---|---|---|---|
-| 1 | **Difficulty plateaus.** Standing completely still, the player does not die. Auto-fire clears the swarm at roughly the rate it spawns (~37 dps against enemies arriving one per 0.6s from ~640px out), so almost nothing reaches contact range. | The game has no real fail state yet. Any upgrade or XP-curve tuning would be balanced against a difficulty ramp that does not exist. | Stage 2 Pass C, or a standalone balance pass |
-| 2 | `docs/CURRENT_ISSUE.md` describes a bug that is fixed. | Actively misleading — it says the game shows a black screen. | Delete it |
-| 3 | ~20 browser-test screenshots (`.playwright-mcp/`, `menu.png`) are tracked in git. | Repo noise. | `git rm -r --cached .playwright-mcp menu.png` and add to `.gitignore` |
-| 4 | No `EnemyDefinition` abstraction yet — `Enemy` takes loose `(maxHp, speed)` arguments. | Fine for one enemy type; the first thing Stage 2 Pass A changes. | Stage 2 Pass A |
+| 1 | **Difficulty plateaus.** Standing completely still, the player does not die. Auto-fire clears the swarm at roughly the rate it spawns (~37 dps against enemies arriving one per 0.6s from ~640px out), so almost nothing reaches contact range. | The game has no real fail state yet. Any upgrade or XP-curve tuning would be balanced against a difficulty ramp that does not exist. | **Stage 2 Pass A — now mandatory, not optional.** Progression cannot be tuned against a flat curve |
+| 2 | 20 browser-test artefacts (`.playwright-mcp/*`, `menu.png`) are tracked in git and not in `.gitignore`. | Repo noise; every clone carries ~20 screenshots. | `git rm -r --cached .playwright-mcp menu.png` and add both to `.gitignore`. Standalone chore, not part of any stage |
+| 3 | No `EnemyDefinition` abstraction — `Enemy` takes loose `(maxHp, speed)` arguments and its texture and body size are fixed at construction. | Fine for one enemy type; the first thing Stage 2 Pass A changes. | Stage 2 Pass A |
 
 None of these block play.
+
+**Fixed and removed from this list:** `docs/CURRENT_ISSUE.md` (described a `PreloadScene`
+crash that no longer exists) was deleted on 2026-08-14.
 
 ---
 
@@ -67,7 +73,7 @@ is the failure mode this exercise exists to prevent.
 flowchart LR
     S1["<b>Stage 1 — COMPLETE</b><br/>playable core<br/>movement · auto-fire · waves<br/>XP · HP · game over"]
     S2["<b>Stage 2 — not started</b><br/>feel<br/>art · audio · particles<br/>upgrades · enemy variety · save"]
-    S3["<b>Stage 3 — not started</b><br/>systems<br/>ECS · level editor<br/>worker pathfinding · leaderboard"]
+    S3["<b>Stage 3 — not started</b><br/>systems<br/>engine-free simulation<br/>determinism · replay"]
     S1 --> S2 --> S3
     style S1 fill:#1f6f4a,stroke:#7fd4a8,color:#eafff4
     style S2 fill:#3a3357,stroke:#a99ad6,color:#f2eeff
@@ -107,12 +113,22 @@ Full brief, with corrections applied against the shipped code:
 
 ### Stage 3 — systems
 
+Stage 3's headline is not "add features". It is **the simulation stops depending on Phaser**:
+the game rules move into a package that runs unmodified in the browser, in a worker and in
+Node. Everything else in the stage is downstream of that.
+
 | Upgrade | What it adds | Stresses | Effort |
 |---|---|---|---|
-| **ECS refactor** | Replaces entity classes with component arrays | Everything. This is the stage that tests whether Stage 1's boundaries were drawn correctly | **L** |
-| **Level editor** | In-browser arena authoring, exported as JSON | "Content is data" taken to its conclusion | **L** |
-| **Worker pathfinding** | Real navigation off the main thread | The frame budget, and the fact that `core/` is portable enough to run in a worker | **L** |
-| **Backend leaderboard** | Server-side score submission | The first network boundary in the project | **L** |
+| **Workspace split** | npm workspaces: `packages/sim` + `packages/game` | Whether the folder boundaries were real or just naming | **M** |
+| **Sim owns motion and contact** | Integration and broadphase move off Arcade Physics into portable TypeScript | Everything. This is the pass that tests whether Stage 1's boundaries were drawn correctly | **L** |
+| **Determinism and replay** | Seeded RNG, fixed timestep, recorded input logs | Reproducibility — the property that makes replay and server validation possible at all | **M** |
+| **ECS refactor** *(gated)* | Replaces entity objects with typed component arrays | Performance under 2000 entities. Aborted if it does not beat plain arrays by 3× | **L** |
+| **Worker pathfinding** *(optional)* | Flow-field navigation off the main thread. Requires arena obstacles, which do not exist yet | The frame budget, and whether the sim is genuinely portable | **L** |
+| **Level editor** *(optional)* | In-browser content authoring against the same zod schemas | "Content is data" taken to its conclusion | **L** |
+| **Backend leaderboard** *(optional)* | Server re-runs the replay and computes the real score | The first network *and* trust boundary in the project | **L** |
+
+Full brief, with the rationale for going big rather than adding more features:
+[`STAGE_3_instructions.md`](STAGE_3_instructions.md).
 
 ### Explicitly not planned
 
@@ -159,9 +175,11 @@ If you are an agent picking up work on this project, this section is your entry 
 Your training data is overwhelmingly Phaser 3, and v4 is a rewrite. Assume your recall is
 stale and verify before writing:
 
-- `node_modules/phaser/skills/` ships subsystem documentation for exactly this purpose — 36
-  skill files covering physics, scenes, particles, input, audio and more. **Read the relevant
-  one before touching an unfamiliar subsystem.**
+- `node_modules/phaser/skills/` ships subsystem documentation for exactly this purpose — **28
+  skill files** covering physics, scenes, particles, input, audio, animations, cameras,
+  tweens, render textures and more, plus `v3-to-v4-migration` and `v4-new-features`. **Read
+  the relevant one before touching an unfamiliar subsystem.** There is no `blitter` skill; if
+  you need `Blitter`, confirm it still exists in `node_modules/phaser/types/` first.
 - `node_modules/phaser/types/phaser.d.ts` is the ground truth when a skill and your memory
   disagree.
 - Known v4 differences already hit in this project: `import * as Phaser from 'phaser'` (no
@@ -211,6 +229,12 @@ link instead.
 | [`ARCHITECTURE.md`](../ARCHITECTURE.md) | Scene lifecycle, system contract, event catalogue, "which file do I touch" | Architecture changes — **in the same commit** |
 | [`AGENTS.md`](../AGENTS.md) | Stack, structure, invariants, code style | A convention is established or changed |
 | [`CLAUDE.md`](../CLAUDE.md) | How humans and agents collaborate here | Working practice changes, not code |
+| [`docs/STAGE_2_INSTRUCTIONS.md`](STAGE_2_INSTRUCTIONS.md) | The Stage 2 brief and its per-feature status ledger | A Stage 2 feature lands — tick its row **in the same commit** |
+| [`docs/STAGE_3_instructions.md`](STAGE_3_instructions.md) | The Stage 3 brief and the rationale for the sim/view split | Stage 2 changes something Stage 3 was planning around |
+| [`docs/KICKSTART.md`](KICKSTART.md) | The original Stage 1 scaffold prompt — **historical** | Never. It is a record of what was asked for, not of what shipped |
+
+Each stage brief is written to work standalone: pointing a fresh session at one of them,
+with no other context, should be enough to start work correctly.
 
 ### The checklist when a feature lands
 

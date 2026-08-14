@@ -2,8 +2,13 @@
 
 ## Current stage
 
-**Stage 1 — complete.** Both passes done. `typecheck`, `lint`, `test` (50 specs) and `build`
-pass clean, and the game runs with an empty browser console.
+**Stage 1 — complete. Stage 2 not started.** Both Stage 1 passes are done; `typecheck`,
+`lint`, `test` (50 specs across 5 files) and `build` pass clean, and the game runs with an
+empty browser console. Last verified 2026-08-14.
+
+The branch is called `feature/stage2` and contains no Stage 2 code — only documentation and
+wave tuning. Read `docs/STAGE_2_INSTRUCTIONS.md` for what Stage 2 is and what it must deliver
+before Stage 3 can begin.
 
 Stage 1 is: player movement, auto-aim weapon firing pooled projectiles, one enemy type with
 chase AI, wave-based spawning driven by JSON, collision damage in both directions, XP gems,
@@ -157,7 +162,7 @@ Base stats are balance. Escalation is content. Only content belongs in a data fi
 | I want to… | Touch |
 |---|---|
 | Add an entity | A new file in `src/entities/`, its stats in `constants/balance.ts`, a pool and group in `GameScene.create()`. |
-| Add an enemy type | A new file in `src/entities/`, its base stats in `constants/balance.ts`, its id in `enemyIdSchema`, and an entry in `waves.json`. No scene edits. |
+| Add an enemy type | **Not yet a cheap operation.** `enemyIdSchema` is `z.literal('grunt')`, `Enemy`'s texture and body size are fixed at construction from `balance.ts`, and a second class would need its own pool and group in `GameScene.create()`. Stage 2 Pass A makes this a two-JSON-file change; today it is a refactor. See `docs/STAGE_2_INSTRUCTIONS.md`. |
 | Add a system | A new file in `src/systems/` implementing `System`, constructed and pushed in `GameScene.create()`. |
 | Add a wave | `src/data/waves.json`. Nothing else. |
 | Change how hard the game is | `src/constants/balance.ts` for base stats, `waves.json` for the curve. |

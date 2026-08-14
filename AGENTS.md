@@ -8,11 +8,15 @@ Instructions for any coding agent working in this repository. Tool-agnostic and 
 
 | Stage | Scope | Status |
 |---|---|---|
-| 1 | Playable core: movement, auto-fire, one enemy, waves, XP, HP, game over | in progress |
-| 2 | Feel: sprites, audio, particles, screen shake, upgrades, enemy variety, save | not started |
-| 3 | Systems: ECS refactor, level editor, worker pathfinding, backend leaderboard | not started |
+| 1 | Playable core: movement, auto-fire, one enemy, waves, XP, HP, game over | **complete** |
+| 2 | Feel and content: sprites, audio, particles, game feel, enemy variety, progression, save | **not started** — brief in `docs/STAGE_2_INSTRUCTIONS.md` |
+| 3 | Systems: the simulation stops depending on Phaser — engine-free rules, determinism, replay | not started — brief in `docs/STAGE_3_instructions.md` |
 
 The current stage is recorded at the top of `ARCHITECTURE.md`. Read it before planning any change.
+
+The branch name `feature/stage2` is aspirational, not evidence. As of 2026-08-14 no Stage 2
+code exists: `enemyIdSchema` is still `z.literal('grunt')` and `src/` contains no
+`AudioSystem`, `VfxSystem`, `StatBlock`, `SaveStore`, atlas or `enemies.json`.
 
 ## Stack
 

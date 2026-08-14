@@ -48,10 +48,16 @@ Read these in order depending on who you are.
 | **New to game development** (but a working developer) | [`docs/ONBOARDING.md`](docs/ONBOARDING.md) | Translates game-engine concepts into terms a web developer already has. Assumes you know TypeScript and npm, assumes you have never written a game loop. |
 | **Wanting the current state and what's next** | [`docs/STATUS.md`](docs/STATUS.md) | The checkpoint. What works, what is deliberately missing, and every upgrade path with its cost. |
 | **Ready to change code** | [`ARCHITECTURE.md`](ARCHITECTURE.md) | How the parts fit and which file to touch for a given change. |
+| **About to build the next stage** | [`docs/STAGE_2_INSTRUCTIONS.md`](docs/STAGE_2_INSTRUCTIONS.md) | Stage 1 is complete; Stage 2 is next and not started. The brief is self-contained — a fresh session needs nothing else to begin. |
 | **An AI agent picking up work** | [`docs/STATUS.md`](docs/STATUS.md) → [`AGENTS.md`](AGENTS.md) | STATUS tells you what to build; AGENTS tells you the rules that will get the work rejected if broken. |
 
-Two more files exist and are worth knowing about: [`AGENTS.md`](AGENTS.md) is the authority on
-stack, structure and architectural invariants — if any other document contradicts it, it wins.
+The stage briefs are [`docs/STAGE_2_INSTRUCTIONS.md`](docs/STAGE_2_INSTRUCTIONS.md) and
+[`docs/STAGE_3_instructions.md`](docs/STAGE_3_instructions.md); the latter opens with the case
+for why Stage 3 is a structural change rather than more features.
+[`docs/KICKSTART.md`](docs/KICKSTART.md) is the original Stage 1 prompt, kept as history.
+
+Two more files are worth knowing about: [`AGENTS.md`](AGENTS.md) is the authority on stack,
+structure and architectural invariants — if any other document contradicts it, it wins.
 [`CLAUDE.md`](CLAUDE.md) covers working conventions rather than the code.
 
 ## The shape of it

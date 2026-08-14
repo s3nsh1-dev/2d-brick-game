@@ -1,4 +1,15 @@
-# Kickstart prompt — paste this into a fresh agent session
+# Kickstart prompt — Stage 1 (historical)
+
+> **This document is a record, not an instruction.** It is the prompt that scaffolded Stage 1,
+> kept so the original ask can be compared against what shipped. **Stage 1 is complete** — do
+> not paste this into a session and do not scaffold against it.
+>
+> Where it disagrees with the repo, the repo is right. Known divergences: `src/__tests__/`
+> holds five spec files rather than the two listed below, and `Controls.ts` is untested
+> because it imports Phaser.
+>
+> For current work start at [`STATUS.md`](STATUS.md), then the brief for the current stage —
+> [`STAGE_2_INSTRUCTIONS.md`](STAGE_2_INSTRUCTIONS.md).
 
 ---
 
