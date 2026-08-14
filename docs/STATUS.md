@@ -250,6 +250,7 @@ link instead.
 | [`docs/STAGE_2_INSTRUCTIONS.md`](STAGE_2_INSTRUCTIONS.md) | The Stage 2 brief and its per-feature status ledger | A Stage 2 feature lands — tick its row **in the same commit** |
 | [`docs/STAGE_3_instructions.md`](STAGE_3_instructions.md) | The Stage 3 brief and the rationale for the sim/view split | Stage 2 changes something Stage 3 was planning around |
 | [`docs/KICKSTART.md`](KICKSTART.md) | The original Stage 1 scaffold prompt — **historical** | Never. It is a record of what was asked for, not of what shipped |
+| [`docs/version1/`](version1/README.md), [`version2/`](version2/README.md), [`version3/`](version3/README.md) | The development record, one folder per stage: decisions, rationale, difficulties, lessons | At the end of a stage, written from what happened. Never edited afterwards except to correct an error |
 
 Each stage brief is written to work standalone: pointing a fresh session at one of them,
 with no other context, should be enough to start work correctly.

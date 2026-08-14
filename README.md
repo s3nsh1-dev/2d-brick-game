@@ -51,6 +51,12 @@ Read these in order depending on who you are.
 | **About to build the next stage** | [`docs/STAGE_2_INSTRUCTIONS.md`](docs/STAGE_2_INSTRUCTIONS.md) | Stage 1 is complete; Stage 2 is next and not started. The brief is self-contained — a fresh session needs nothing else to begin. |
 | **An AI agent picking up work** | [`docs/STATUS.md`](docs/STATUS.md) → [`AGENTS.md`](AGENTS.md) | STATUS tells you what to build; AGENTS tells you the rules that will get the work rejected if broken. |
 
+**Version history.** [`docs/version1/`](docs/version1/README.md),
+[`docs/version2/`](docs/version2/README.md) and [`docs/version3/`](docs/version3/README.md) are
+the development record, one folder per stage: what was decided and why, what went wrong, and
+what a developer new to 2D games should take from it. Version 1 is the best entry point if you
+want to understand *why* the project looks like this rather than *how* it works today.
+
 The stage briefs are [`docs/STAGE_2_INSTRUCTIONS.md`](docs/STAGE_2_INSTRUCTIONS.md) and
 [`docs/STAGE_3_instructions.md`](docs/STAGE_3_instructions.md); the latter opens with the case
 for why Stage 3 is a structural change rather than more features.

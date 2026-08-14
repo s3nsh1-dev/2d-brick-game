@@ -12,9 +12,11 @@ floating damage numbers, screen shake and damage flash (B); knockback and hit-st
 curve, levels, computed stats and pick-1-of-3 upgrades (D); versioned persistence and a pause
 screen (E).
 
-Stage 3 changes what the program *is* — the simulation stops depending on Phaser. Nothing in
-this repo anticipates it beyond the readiness gate in `docs/STAGE_2_INSTRUCTIONS.md` §9.
-Mobile controls, settings, i18n and multiplayer are not planned for any stage.
+Stage 3 is **refinement and ship** — the last stage, after which the game is deployed. It is
+mostly scenes and presentation; it does not change the gameplay systems. An earlier Stage 3
+that would have moved the simulation out of Phaser was cancelled deliberately, and
+`docs/STAGE_3_instructions.md` §2 records why and what that costs. Mobile controls, settings,
+i18n and multiplayer are not planned for any stage.
 
 ## The shape of a frame
 

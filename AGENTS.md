@@ -10,7 +10,7 @@ Instructions for any coding agent working in this repository. Tool-agnostic and 
 |---|---|---|
 | 1 | Playable core: movement, auto-fire, one enemy, waves, XP, HP, game over | **complete** |
 | 2 | Feel and content: sprites, audio, particles, game feel, enemy variety, progression, save | **complete** — all five passes. Brief and ledger in `docs/STAGE_2_INSTRUCTIONS.md` |
-| 3 | Systems: the simulation stops depending on Phaser — engine-free rules, determinism, replay | not started — brief in `docs/STAGE_3_instructions.md` |
+| 3 | Refinement and ship: polish, flow, deployment. The last stage | not started — brief in `docs/STAGE_3_instructions.md` |
 
 The current stage is recorded at the top of `ARCHITECTURE.md`. Read it before planning any change.
 
