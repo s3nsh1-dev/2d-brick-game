@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 import { BALANCE } from '../constants/balance';
 import { Depth } from '../constants/depths';
 import { SceneKey } from '../constants/keys';
+import { toCssColor } from '../core/color';
 import { eventBus } from '../core/EventBus';
 import { clamp } from '../core/math';
 
@@ -50,7 +51,7 @@ export class HUDScene extends Phaser.Scene {
     const textStyle = {
       fontFamily: font.family,
       fontSize: font.bodySize,
-      color: font.color,
+      color: toCssColor(BALANCE.palette.uiText),
     };
 
     this.hpBar = this.add.graphics().setDepth(Depth.UI);

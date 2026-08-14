@@ -4,11 +4,81 @@
 // holds the *escalation* applied to them per wave. Base stats are balance, escalation is
 // content, and only content belongs in a data file.
 
+/**
+ * Every colour in the game, in one place. Invariant 17: a hex literal anywhere else is a bug
+ * in the same way a magic number is.
+ *
+ * Declared as its own const rather than inline in `BALANCE` so the entries below can name a
+ * colour by meaning — `backgroundColor: PALETTE.backdrop` — instead of repeating the number.
+ * One definition per colour is what makes a theme variant an edit rather than a sweep.
+ *
+ * Enemy colours are the deliberate exception: they live in `data/enemies.json` because type
+ * identity is content, and that file is frozen (invariant 16). What the palette owes them is
+ * a floor they stay legible against, which is why every arena colour below is far darker
+ * than any of the three.
+ */
+const PALETTE = {
+  /** Behind everything: the canvas clear colour and the page around it. */
+  backdrop: 0x0a0a11,
+  /** The playable surface. Stage 2's flat world colour, now with an edge to belong to. */
+  arenaFloor: 0x14141c,
+  /** The lattice on the floor. Deliberately barely above the floor it sits on. */
+  arenaGrid: 0x1d1d29,
+  /** The wall. The one line that says where the world stops. */
+  arenaEdge: 0x4c4c70,
+  /** A lit band just inside the wall, so the boundary reads as depth rather than as a stroke. */
+  arenaEdgeGlow: 0x252540,
+  /** Corners darken toward this. It is what stops a flat rectangle reading as flat. */
+  vignette: 0x04040a,
+
+  playerBody: 0x6ce5b1,
+  projectile: 0xf2e9a0,
+  gem: 0x7fb2ff,
+
+  uiText: 0xe8e8f0,
+  uiDim: 0x9a9aae,
+  uiAccent: 0x6ce5b1,
+  uiPanel: 0x22222e,
+  uiPanelHover: 0x2e2e3e,
+  uiPanelEdge: 0x2a2a36,
+
+  /** Damage taken, and anything the player should read as a threat. */
+  danger: 0xff4d4d,
+  /** A warning that is not yet damage: the spawn telegraph. */
+  warning: 0xffc857,
+
+  /** Particles are baked white and tinted, so this is the one texture colour. */
+  spark: 0xffffff,
+  deathBurst: 0xe4645a,
+  damageNumber: 0xffe9a8,
+  playerDamageNumber: 0xff8a8a,
+} as const;
+
 export const BALANCE = {
+  palette: PALETTE,
+
   world: {
     width: 1280,
     height: 720,
-    backgroundColor: 0x14141c,
+    backgroundColor: PALETTE.backdrop,
+  },
+
+  // The arena's own geometry. Every number here is drawn once into a texture at boot and
+  // never touched again, so none of it costs anything per frame.
+  arena: {
+    /** Grid spacing. Large enough to read as a room rather than as graph paper. */
+    gridCell: 64,
+    gridLineWidth: 1,
+    // Low on purpose. Every element behind the entities competes with them, and the enemies
+    // must stay the highest-contrast thing on screen.
+    gridAlpha: 0.6,
+    edgeWidth: 3,
+    /** How far the lit band reaches in from the wall. */
+    edgeGlowWidth: 26,
+    edgeGlowAlpha: 0.55,
+    /** How far the corner darkening reaches in from each side. */
+    vignetteDepth: 200,
+    vignetteAlpha: 0.75,
   },
 
   time: {
@@ -19,7 +89,7 @@ export const BALANCE = {
 
   player: {
     size: 22,
-    color: 0x6ce5b1,
+    color: PALETTE.playerBody,
     speed: 210,
     maxHp: 100,
   },
@@ -47,7 +117,7 @@ export const BALANCE = {
 
   projectile: {
     size: 6,
-    color: 0xf2e9a0,
+    color: PALETTE.projectile,
     speed: 480,
     lifetimeSeconds: 1.1,
     poolSize: 120,
@@ -66,7 +136,7 @@ export const BALANCE = {
 
   gem: {
     size: 8,
-    color: 0x7fb2ff,
+    color: PALETTE.gem,
     value: 1,
     magnetRadius: 96,
     magnetSpeed: 340,
@@ -213,7 +283,7 @@ export const BALANCE = {
       lifespanMs: 220,
       scaleStart: 1,
       scaleEnd: 0,
-      color: 0xf2e9a0,
+      color: PALETTE.projectile,
     },
     deathBurst: {
       count: 10,
@@ -222,7 +292,7 @@ export const BALANCE = {
       lifespanMs: 420,
       scaleStart: 1.4,
       scaleEnd: 0,
-      color: 0xe4645a,
+      color: PALETTE.deathBurst,
     },
     pickupSparkle: {
       count: 5,
@@ -231,7 +301,7 @@ export const BALANCE = {
       lifespanMs: 300,
       scaleStart: 0.9,
       scaleEnd: 0,
-      color: 0x7fb2ff,
+      color: PALETTE.gem,
     },
 
     shake: {
@@ -240,7 +310,7 @@ export const BALANCE = {
     },
     flash: {
       durationMs: 120,
-      color: 0xff4d4d,
+      color: PALETTE.danger,
     },
 
     floatingText: {
@@ -248,8 +318,24 @@ export const BALANCE = {
       riseSpeed: 46,
       lifetimeSeconds: 0.65,
       fontSize: '16px',
-      color: '#ffe9a8',
-      playerDamageColor: '#ff8a8a',
+      color: PALETTE.damageNumber,
+      playerDamageColor: PALETTE.playerDamageNumber,
+    },
+
+    // The mark left on the wall where an enemy is about to walk in. An enemy crosses the
+    // ring margin in `ringMargin / speed` seconds — roughly 0.8s for a grunt — so a marker
+    // that outlives that is a warning the player had time to act on.
+    spawnMarker: {
+      poolSize: 32,
+      /** Baked size of the bar. It lies along the wall it is drawn on. */
+      width: 34,
+      height: 4,
+      lifetimeSeconds: 0.75,
+      /** How far inside the wall the bar sits, so it never straddles the edge stroke. */
+      inset: 12,
+      color: PALETTE.warning,
+      /** Starts stretched and settles, so the eye catches the change rather than the shape. */
+      scaleStart: 1.6,
     },
   },
 
@@ -258,15 +344,13 @@ export const BALANCE = {
     hpBar: {
       width: 280,
       height: 18,
-      backgroundColor: 0x2a2a36,
-      fillColor: 0x6ce5b1,
+      backgroundColor: PALETTE.uiPanelEdge,
+      fillColor: PALETTE.playerBody,
     },
     font: {
       family: 'monospace',
       bodySize: '18px',
       titleSize: '46px',
-      color: '#e8e8f0',
-      dimColor: '#9a9aae',
     },
 
     upgrade: {
@@ -276,11 +360,10 @@ export const BALANCE = {
         width: 260,
         height: 190,
         gap: 34,
-        backgroundColor: 0x22222e,
-        hoverColor: 0x2e2e3e,
-        borderColor: 0x6ce5b1,
+        backgroundColor: PALETTE.uiPanel,
+        hoverColor: PALETTE.uiPanelHover,
+        borderColor: PALETTE.uiAccent,
         borderWidth: 2,
-        accentColor: '#6ce5b1',
       },
     },
   },

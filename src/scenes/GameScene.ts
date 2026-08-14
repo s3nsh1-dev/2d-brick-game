@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { BALANCE } from '../constants/balance';
-import { SceneKey } from '../constants/keys';
+import { Depth } from '../constants/depths';
+import { SceneKey, StaticTextureKey } from '../constants/keys';
 import { eventBus } from '../core/EventBus';
 import { ObjectPool } from '../core/ObjectPool';
 import { getEnemyData, getUpgradeData, getWaveData } from '../data/schema';
@@ -133,6 +134,10 @@ export class GameScene extends Phaser.Scene {
   public create(): void {
     const { width, height } = BALANCE.world;
     this.physics.world.setBounds(0, 0, width, height);
+
+    // The arena is one texture composited at boot, not a stack of live shapes. Placed before
+    // anything else so the display list order matches the depth order for free.
+    this.add.image(0, 0, StaticTextureKey.ARENA).setOrigin(0).setDepth(Depth.BACKGROUND);
 
     this.player = new Player(this, width / 2, height / 2);
 

@@ -145,5 +145,10 @@ export class SpawnSystem implements System {
       BALANCE.enemy.baseHp * definition.hpScale * entry.hpScale,
       BALANCE.enemy.baseSpeed * definition.speedScale * entry.speedScale,
     );
+
+    // Presentation only. This system decides nothing about the telegraph and does not know
+    // whether anything is listening — the same relationship `CombatSystem` has with the
+    // damage numbers it announces.
+    this.bus.emit('enemy:spawned', x, y);
   }
 }

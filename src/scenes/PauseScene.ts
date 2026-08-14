@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 import { BALANCE } from '../constants/balance';
 import { Depth } from '../constants/depths';
 import { SceneKey } from '../constants/keys';
+import { toCssColor } from '../core/color';
 
 // A held breath. Like `UpgradeScene`, this layers over a *paused* GameScene rather than
 // replacing it, so the arena stays on screen behind the text.
@@ -32,7 +33,7 @@ export class PauseScene extends Phaser.Scene {
       .text(width / 2, height / 2 - 24, 'PAUSED', {
         fontFamily: font.family,
         fontSize: font.titleSize,
-        color: font.color,
+        color: toCssColor(BALANCE.palette.uiText),
       })
       .setOrigin(0.5)
       .setDepth(Depth.UI);
@@ -41,7 +42,7 @@ export class PauseScene extends Phaser.Scene {
       .text(width / 2, height / 2 + 34, 'press any key to resume', {
         fontFamily: font.family,
         fontSize: font.bodySize,
-        color: font.dimColor,
+        color: toCssColor(BALANCE.palette.uiDim),
       })
       .setOrigin(0.5)
       .setDepth(Depth.UI);

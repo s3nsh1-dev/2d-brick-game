@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 import { BALANCE } from '../constants/balance';
 import { Depth } from '../constants/depths';
 import { SceneKey } from '../constants/keys';
+import { toCssColor } from '../core/color';
 import { eventBus } from '../core/EventBus';
 import { getUpgradeData, type UpgradeDefinition } from '../data/schema';
 
@@ -70,7 +71,7 @@ export class UpgradeScene extends Phaser.Scene {
       .text(width / 2, height / 2 - card.height / 2 - 80, `LEVEL ${String(this.level)}`, {
         fontFamily: font.family,
         fontSize: font.titleSize,
-        color: font.color,
+        color: toCssColor(BALANCE.palette.uiText),
       })
       .setOrigin(0.5)
       .setDepth(Depth.UI);
@@ -79,7 +80,7 @@ export class UpgradeScene extends Phaser.Scene {
       .text(width / 2, height / 2 - card.height / 2 - 34, 'choose an upgrade', {
         fontFamily: font.family,
         fontSize: font.bodySize,
-        color: font.dimColor,
+        color: toCssColor(BALANCE.palette.uiDim),
       })
       .setOrigin(0.5)
       .setDepth(Depth.UI);
@@ -112,7 +113,7 @@ export class UpgradeScene extends Phaser.Scene {
       .text(0, -card.height / 2 + 26, `[${String(index + 1)}]`, {
         fontFamily: font.family,
         fontSize: font.bodySize,
-        color: font.dimColor,
+        color: toCssColor(BALANCE.palette.uiDim),
       })
       .setOrigin(0.5);
 
@@ -120,7 +121,7 @@ export class UpgradeScene extends Phaser.Scene {
       .text(0, -14, upgrade.name, {
         fontFamily: font.family,
         fontSize: font.bodySize,
-        color: font.color,
+        color: toCssColor(BALANCE.palette.uiText),
         align: 'center',
         wordWrap: { width: card.width - 28 },
       })
@@ -130,7 +131,7 @@ export class UpgradeScene extends Phaser.Scene {
       .text(0, 30, upgrade.description, {
         fontFamily: font.family,
         fontSize: font.bodySize,
-        color: card.accentColor,
+        color: toCssColor(BALANCE.palette.uiAccent),
         align: 'center',
         wordWrap: { width: card.width - 28 },
       })

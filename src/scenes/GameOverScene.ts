@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 import { BALANCE } from '../constants/balance';
 import { Depth } from '../constants/depths';
 import { SceneKey } from '../constants/keys';
+import { toCssColor } from '../core/color';
 import { EMPTY_SAVE, SaveStore, type SaveData, type StorageAdapter } from '../core/SaveStore';
 
 export interface GameOverData {
@@ -64,7 +65,7 @@ export class GameOverScene extends Phaser.Scene {
       .text(width / 2, height / 2 - 70, 'RUN OVER', {
         fontFamily: font.family,
         fontSize: font.titleSize,
-        color: font.color,
+        color: toCssColor(BALANCE.palette.uiText),
       })
       .setOrigin(0.5)
       .setDepth(Depth.UI);
@@ -77,7 +78,7 @@ export class GameOverScene extends Phaser.Scene {
         {
           fontFamily: font.family,
           fontSize: font.bodySize,
-          color: font.color,
+          color: toCssColor(BALANCE.palette.uiText),
         },
       )
       .setOrigin(0.5)
@@ -93,7 +94,7 @@ export class GameOverScene extends Phaser.Scene {
         {
           fontFamily: font.family,
           fontSize: font.bodySize,
-          color: font.dimColor,
+          color: toCssColor(BALANCE.palette.uiDim),
         },
       )
       .setOrigin(0.5)
@@ -103,7 +104,7 @@ export class GameOverScene extends Phaser.Scene {
       .text(width / 2, height / 2 + 96, 'press any key to run again', {
         fontFamily: font.family,
         fontSize: font.bodySize,
-        color: font.dimColor,
+        color: toCssColor(BALANCE.palette.uiDim),
       })
       .setOrigin(0.5)
       .setDepth(Depth.UI);

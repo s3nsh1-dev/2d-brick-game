@@ -2,9 +2,12 @@ import * as Phaser from 'phaser';
 import { BALANCE } from '../constants/balance';
 import { Depth } from '../constants/depths';
 import { StaticTextureKey } from '../constants/keys';
+import { toCssColor } from '../core/color';
 import type { EventBus, GameEvents } from '../core/EventBus';
+import { clamp } from '../core/math';
 import { ObjectPool } from '../core/ObjectPool';
 import { FloatingText } from '../entities/FloatingText';
+import { SpawnMarker } from '../entities/SpawnMarker';
 import type { System } from './System';
 
 // Every particle, camera effect and damage number in the game. Subscribes to the bus and
@@ -24,13 +27,48 @@ export class VfxSystem implements System {
   private readonly pickupSparkle: Phaser.GameObjects.Particles.ParticleEmitter;
 
   private readonly texts: ObjectPool<FloatingText>;
+  private readonly markers: ObjectPool<SpawnMarker>;
 
   /** Decomposed once: `Camera.flash` takes channels, and `balance.ts` stores a colour. */
   private readonly flashColor: Phaser.Types.Display.ColorObject;
 
+  /**
+   * The palette's damage colours as CSS, converted once.
+   *
+   * Phaser's text style wants a string and the palette stores an integer. Converting per hit
+   * would allocate a string on every impact, which at two hundred enemies is exactly the
+   * kind of per-frame garbage invariant 6 exists to keep out.
+   */
+  private readonly enemyDamageCss = toCssColor(BALANCE.vfx.floatingText.color);
+  private readonly playerDamageCss = toCssColor(BALANCE.vfx.floatingText.playerDamageColor);
+
   private readonly handleEnemyDamaged = (x: number, y: number, amount: number): void => {
     this.hitSpark.explode(BALANCE.vfx.hitSpark.count, x, y);
-    this.showText(x, y, amount, BALANCE.vfx.floatingText.color);
+    this.showText(x, y, amount, this.enemyDamageCss);
+  };
+
+  /**
+   * Marks the wall an enemy is about to cross.
+   *
+   * The spawn position is on the ring *outside* the arena, so exactly one of its coordinates
+   * is out of bounds; clamping both gives the point on the wall the enemy will walk through,
+   * and which coordinate moved says whether the bar lies flat or stands on end.
+   */
+  private readonly handleEnemySpawned = (x: number, y: number): void => {
+    const marker = this.markers.acquire();
+    if (marker === undefined) {
+      return;
+    }
+
+    const { width, height } = BALANCE.world;
+    const { inset } = BALANCE.vfx.spawnMarker;
+    const vertical = x < 0 || x > width;
+
+    marker.show(
+      clamp(x, inset, width - inset),
+      clamp(y, inset, height - inset),
+      vertical,
+    );
   };
 
   private readonly handleEnemyDied = (x: number, y: number): void => {
@@ -48,7 +86,7 @@ export class VfxSystem implements System {
     camera.shake(shake.durationMs, shake.intensity);
     camera.flash(flash.durationMs, this.flashColor.r, this.flashColor.g, this.flashColor.b);
 
-    this.showText(x, y, amount, BALANCE.vfx.floatingText.playerDamageColor);
+    this.showText(x, y, amount, this.playerDamageCss);
   };
 
   public constructor(
@@ -69,6 +107,15 @@ export class VfxSystem implements System {
       },
     );
 
+    this.markers = new ObjectPool<SpawnMarker>(
+      BALANCE.vfx.spawnMarker.poolSize,
+      () => new SpawnMarker(this.scene),
+      (marker) => {
+        marker.despawn();
+      },
+    );
+
+    this.bus.on('enemy:spawned', this.handleEnemySpawned);
     this.bus.on('enemy:damaged', this.handleEnemyDamaged);
     this.bus.on('enemy:died', this.handleEnemyDied);
     this.bus.on('gem:collected', this.handleGemCollected);
@@ -89,15 +136,29 @@ export class VfxSystem implements System {
         this.texts.release(text);
       }
     }
+
+    const markers = this.markers.active;
+    for (let i = markers.length - 1; i >= 0; i -= 1) {
+      const marker = markers[i];
+      if (marker === undefined) {
+        continue;
+      }
+
+      if (marker.tickLife(dt)) {
+        this.markers.release(marker);
+      }
+    }
   }
 
   public destroy(): void {
+    this.bus.off('enemy:spawned', this.handleEnemySpawned);
     this.bus.off('enemy:damaged', this.handleEnemyDamaged);
     this.bus.off('enemy:died', this.handleEnemyDied);
     this.bus.off('gem:collected', this.handleGemCollected);
     this.bus.off('player:damaged', this.handlePlayerDamaged);
 
     this.texts.releaseAll();
+    this.markers.releaseAll();
   }
 
   /**

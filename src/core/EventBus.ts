@@ -28,6 +28,14 @@ export interface GameEvents {
   // allocates a rest-argument array, and why the collision callbacks next to them are still
   // direct calls: those fire per contact per frame.
 
+  /**
+   * An enemy entered the world at this position, which is on the ring *outside* the arena.
+   *
+   * Emitted for the telegraph and nothing else: `VfxSystem` marks the wall the enemy is
+   * about to cross. Bounded by the spawn intervals in `waves.json`, which are the slowest
+   * clocks in the game — the busiest wave emits this a handful of times a second.
+   */
+  'enemy:spawned': [x: number, y: number];
   /** An enemy took damage at this position. */
   'enemy:damaged': [x: number, y: number, amount: number];
   /** The player took damage at this position. */

@@ -26,6 +26,17 @@ export const StaticTextureKey = {
   XP_GEM: 'xpGem',
   /** The particle sprite every emitter draws. One small square, tinted per effect. */
   SPARK: 'spark',
+  /** The bar that marks where an enemy is about to enter. */
+  SPAWN_MARKER: 'spawnMarker',
+  /**
+   * The whole arena — floor, grid, lit edge and vignette — composited once at boot.
+   *
+   * A DynamicTexture rather than a `generateTexture` bake: `generateTexture` goes through the
+   * Canvas API, which drops the gradient fills the edge glow and vignette are made of. A
+   * DynamicTexture renders through WebGL and keeps them. One texture, one draw call, and
+   * nothing rebuilt per frame.
+   */
+  ARENA: 'arena',
 } as const;
 
 export type StaticTextureKey = (typeof StaticTextureKey)[keyof typeof StaticTextureKey];

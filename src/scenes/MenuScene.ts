@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 import { BALANCE } from '../constants/balance';
 import { Depth } from '../constants/depths';
 import { SceneKey } from '../constants/keys';
+import { toCssColor } from '../core/color';
 
 // Title card. Any key or click starts a run.
 
@@ -24,7 +25,7 @@ export class MenuScene extends Phaser.Scene {
       .text(width / 2, height / 2 - 70, 'ARENA', {
         fontFamily: font.family,
         fontSize: font.titleSize,
-        color: font.color,
+        color: toCssColor(BALANCE.palette.uiText),
       })
       .setOrigin(0.5)
       .setDepth(Depth.UI);
@@ -33,7 +34,7 @@ export class MenuScene extends Phaser.Scene {
       .text(width / 2, height / 2 + 10, 'WASD to move. You fire on your own.', {
         fontFamily: font.family,
         fontSize: font.bodySize,
-        color: font.color,
+        color: toCssColor(BALANCE.palette.uiText),
       })
       .setOrigin(0.5)
       .setDepth(Depth.UI);
@@ -42,7 +43,7 @@ export class MenuScene extends Phaser.Scene {
       .text(width / 2, height / 2 + 60, 'press any key to begin', {
         fontFamily: font.family,
         fontSize: font.bodySize,
-        color: font.dimColor,
+        color: toCssColor(BALANCE.palette.uiDim),
       })
       .setOrigin(0.5)
       .setDepth(Depth.UI);

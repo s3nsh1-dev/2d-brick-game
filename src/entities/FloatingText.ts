@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { BALANCE } from '../constants/balance';
 import { Depth } from '../constants/depths';
+import { toCssColor } from '../core/color';
 
 // A damage number that drifts upward and fades. Pooled like everything else spawned at
 // runtime, and owned by VfxSystem rather than by GameScene: deleting that system must take
@@ -16,7 +17,7 @@ export class FloatingText extends Phaser.GameObjects.Text {
     super(scene, 0, 0, '', {
       fontFamily: BALANCE.ui.font.family,
       fontSize: BALANCE.vfx.floatingText.fontSize,
-      color: BALANCE.vfx.floatingText.color,
+      color: toCssColor(BALANCE.vfx.floatingText.color),
     });
 
     scene.add.existing(this);
