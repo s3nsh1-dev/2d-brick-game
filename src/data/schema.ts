@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { z } from 'zod';
+import { DataKey } from '../constants/keys';
 
 // Runtime shape of everything under src/data. Parsed with `.parse()`, never `.safeParse()`:
 // malformed content must crash at boot, loudly, not produce an empty wave 7.
@@ -43,10 +44,10 @@ export type WaveData = z.infer<typeof waveDataSchema>;
 
 /** Reads the loaded JSON out of the loader cache and validates it. Throws if malformed. */
 export function readWaveDataFromCache(cache: Phaser.Cache.CacheManager): WaveData {
-  throw new Error('not implemented');
+  return waveDataSchema.parse(cache.json.get(DataKey.WAVES) as unknown);
 }
 
 /** Reads the validated wave data back out of the game registry. */
 export function getWaveData(registry: Phaser.Data.DataManager): WaveData {
-  throw new Error('not implemented');
+  return waveDataSchema.parse(registry.get(DataKey.WAVES) as unknown);
 }

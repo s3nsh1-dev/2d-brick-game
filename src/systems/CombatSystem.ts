@@ -1,4 +1,6 @@
+import { BALANCE } from '../constants/balance';
 import type { EventBus, GameEvents } from '../core/EventBus';
+import { nearest, scratchA, setLength } from '../core/math';
 import type { ObjectPool } from '../core/ObjectPool';
 import type { Enemy } from '../entities/Enemy';
 import type { Player } from '../entities/Player';
@@ -41,20 +43,110 @@ export class CombatSystem implements System {
   }
 
   public update(dt: number): void {
-    throw new Error('not implemented');
+    if (this.runEnded) {
+      return;
+    }
+
+    this.steerEnemies(dt);
+    this.fire();
+    this.ageProjectiles(dt);
   }
 
   /** Called by GameScene's projectile/enemy overlap. */
   public onProjectileHitEnemy(projectile: Projectile, enemy: Enemy): void {
-    throw new Error('not implemented');
+    // Both guards matter: one physics step can report several pairs involving a sprite that
+    // an earlier pair already released back to its pool.
+    if (this.runEnded || !projectile.active || !enemy.active) {
+      return;
+    }
+
+    this.projectiles.release(projectile);
+    enemy.health.damage(this.player.weapon.damage);
+    if (!enemy.health.isDead) {
+      return;
+    }
+
+    const deathX = enemy.x;
+    const deathY = enemy.y;
+    this.enemies.release(enemy);
+    this.bus.emit('enemy:died', deathX, deathY);
   }
 
   /** Called by GameScene's player/enemy overlap, every frame the two are touching. */
   public onEnemyTouchedPlayer(enemy: Enemy): void {
-    throw new Error('not implemented');
+    if (this.runEnded || !enemy.active || !enemy.canDealContactDamage) {
+      return;
+    }
+
+    enemy.consumeContactDamage();
+
+    const health = this.player.health;
+    health.damage(BALANCE.enemy.contactDamage);
+    this.bus.emit('player:health-changed', health.current, health.max);
+
+    if (health.isDead) {
+      this.runEnded = true;
+      this.bus.emit('run:ended', this.currentWave, this.currentXp);
+    }
   }
 
   public destroy(): void {
-    throw new Error('not implemented');
+    this.bus.off('wave:started', this.handleWaveStarted);
+    this.bus.off('xp:changed', this.handleXpChanged);
+  }
+
+  private steerEnemies(dt: number): void {
+    for (const enemy of this.enemies.active) {
+      enemy.tickContactCooldown(dt);
+
+      const direction = setLength(
+        scratchA,
+        this.player.x - enemy.x,
+        this.player.y - enemy.y,
+        enemy.speed,
+      );
+      enemy.setVelocity(direction.x, direction.y);
+    }
+  }
+
+  private fire(): void {
+    const weapon = this.player.weapon;
+    if (!weapon.isReady) {
+      return;
+    }
+
+    const target = nearest(this.player.x, this.player.y, this.enemies.active, weapon.range);
+    if (target === undefined) {
+      return;
+    }
+
+    const projectile = this.projectiles.acquire();
+    if (projectile === undefined) {
+      return;
+    }
+
+    // Readiness was checked above, so this always succeeds; calling it is what spends the
+    // cooldown. Spending it only once a projectile is in hand keeps an exhausted pool from
+    // silently eating shots.
+    weapon.tryFire();
+
+    const direction = setLength(scratchA, target.x - this.player.x, target.y - this.player.y, 1);
+    projectile.fire(this.player.x, this.player.y, direction.x, direction.y);
+  }
+
+  private ageProjectiles(dt: number): void {
+    const projectiles = this.projectiles.active;
+
+    // Backwards, because `release` swap-removes from this same array.
+    for (let i = projectiles.length - 1; i >= 0; i -= 1) {
+      const projectile = projectiles[i];
+      if (projectile === undefined) {
+        continue;
+      }
+
+      if (projectile.tickLifetime(dt)) {
+        this.projectiles.release(projectile);
+      }
+    }
   }
 }

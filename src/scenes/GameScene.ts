@@ -59,12 +59,99 @@ export class GameScene extends Phaser.Scene {
     this.scene.start(SceneKey.GAME_OVER, { waveReached, xpTotal });
   };
 
+  /**
+   * Registered against SHUTDOWN. Destroys the systems, empties the pools and clears the
+   * bus, so a second restart behaves exactly like the first.
+   */
+  private readonly shutdown = (): void => {
+    // Listener hygiene first. Anything that throws later in this handler would otherwise
+    // skip it, and a bus listener surviving a restart is the exact bug invariant 9 exists
+    // to prevent.
+    for (const system of this.systems) {
+      system.destroy();
+    }
+    eventBus.clear();
+
+    // Emptied rather than reassigned: Phaser reuses the scene instance across restarts, so
+    // field initialisers do not run again and a surviving entry would be updated twice.
+    this.systems.length = 0;
+
+    this.enemies.releaseAll();
+    this.projectiles.releaseAll();
+    this.gems.releaseAll();
+
+    this.scene.stop(SceneKey.HUD);
+  };
+
   public constructor() {
     super(SceneKey.GAME);
   }
 
   public create(): void {
-    throw new Error('not implemented');
+    const { width, height } = BALANCE.world;
+    this.physics.world.setBounds(0, 0, width, height);
+
+    this.player = new Player(this, width / 2, height / 2);
+
+    // A group per pooled type. Membership is fixed for the scene's life: the factory adds
+    // each sprite once, at construction, and nothing ever leaves.
+    const enemyGroup = this.physics.add.group();
+    const projectileGroup = this.physics.add.group();
+    const gemGroup = this.physics.add.group();
+
+    this.enemies = new ObjectPool<Enemy>(
+      BALANCE.enemy.poolSize,
+      () => {
+        const enemy = new Enemy(this);
+        enemyGroup.add(enemy);
+        return enemy;
+      },
+      (enemy) => {
+        enemy.despawn();
+      },
+    );
+
+    this.projectiles = new ObjectPool<Projectile>(
+      BALANCE.projectile.poolSize,
+      () => {
+        const projectile = new Projectile(this);
+        projectileGroup.add(projectile);
+        return projectile;
+      },
+      (projectile) => {
+        projectile.despawn();
+      },
+    );
+
+    this.gems = new ObjectPool<XpGem>(
+      BALANCE.gem.poolSize,
+      () => {
+        const gem = new XpGem(this);
+        gemGroup.add(gem);
+        return gem;
+      },
+      (gem) => {
+        gem.despawn();
+      },
+    );
+
+    this.combat = new CombatSystem(this.player, this.enemies, this.projectiles, eventBus);
+    this.pickups = new PickupSystem(this.player, this.gems, eventBus);
+    this.systems.push(
+      new SpawnSystem(getWaveData(this.registry), this.enemies, eventBus),
+      this.combat,
+      this.pickups,
+    );
+
+    this.physics.add.overlap(projectileGroup, enemyGroup, this.handleProjectileHitEnemy);
+    this.physics.add.overlap(this.player, enemyGroup, this.handleEnemyTouchedPlayer);
+    this.physics.add.overlap(this.player, gemGroup, this.handlePlayerTouchedGem);
+
+    eventBus.on('run:ended', this.handleRunEnded);
+
+    this.scene.launch(SceneKey.HUD);
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.shutdown);
   }
 
   /**
@@ -73,14 +160,12 @@ export class GameScene extends Phaser.Scene {
    * simulation forward gently instead of teleporting bodies through one another.
    */
   public override update(_time: number, delta: number): void {
-    throw new Error('not implemented');
+    const dt = Math.min(delta / 1000, BALANCE.time.maxDeltaSeconds);
+
+    this.player.update(dt);
+    for (const system of this.systems) {
+      system.update(dt);
+    }
   }
 
-  /**
-   * Registered against SHUTDOWN. Destroys the systems, empties the pools and clears the
-   * bus, so a second restart behaves exactly like the first.
-   */
-  private shutdown(): void {
-    throw new Error('not implemented');
-  }
 }

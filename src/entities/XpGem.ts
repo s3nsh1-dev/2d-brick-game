@@ -20,10 +20,16 @@ export class XpGem extends Phaser.Physics.Arcade.Sprite {
   }
 
   public spawn(x: number, y: number): void {
-    throw new Error('not implemented');
+    this.enableBody(true, x, y, true, true);
   }
 
   public despawn(): void {
-    throw new Error('not implemented');
+    // See Enemy.despawn: the body is already gone by the time a pool is released during
+    // scene teardown.
+    if (!this.body) {
+      return;
+    }
+
+    this.disableBody(true, true);
   }
 }

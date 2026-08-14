@@ -5,6 +5,7 @@ import { Weapon } from '../components/Weapon';
 import { BALANCE } from '../constants/balance';
 import { Depth } from '../constants/depths';
 import { TextureKey } from '../constants/keys';
+import { scratchA } from '../core/math';
 
 // The player. Composes Health, Weapon and Controls; inherits only from Phaser's sprite.
 //
@@ -36,10 +37,16 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
   /** Called by GameScene with dt in seconds. Reads input and drives velocity. */
   public override update(dt: number): void {
-    throw new Error('not implemented');
+    const direction = this.controls.readDirection(scratchA);
+    this.setVelocity(direction.x * BALANCE.player.speed, direction.y * BALANCE.player.speed);
+
+    // The player owns the weapon, so it owns ticking the weapon's clock. CombatSystem
+    // decides whether there is anything worth spending it on.
+    this.weapon.update(dt);
   }
 
   public override destroy(fromScene?: boolean): void {
-    throw new Error('not implemented');
+    this.controls.destroy();
+    super.destroy(fromScene);
   }
 }

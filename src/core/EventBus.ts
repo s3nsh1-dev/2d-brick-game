@@ -6,13 +6,8 @@
 // leak in through the type graph. Keeping payloads primitive is also what stops HUDScene
 // from ever holding a Player.
 
-/**
- * Event name to payload tuple. Every bus event in the game is declared here.
- *
- * A type alias rather than an interface: only aliases get the implicit index signature that
- * lets them satisfy `EventMap`.
- */
-export type GameEvents = {
+/** Event name to payload tuple. Every bus event in the game is declared here. */
+export interface GameEvents {
   /** A wave began. Carries the 1-based wave number. */
   'wave:started': [waveNumber: number];
   /** The player's health changed, by damage or by a run restarting. */
@@ -23,41 +18,69 @@ export type GameEvents = {
   'xp:changed': [total: number];
   /** The run is over. Carries the final stats GameOverScene displays. */
   'run:ended': [waveReached: number, xpTotal: number];
-};
+}
 
-export type EventMap = Record<string, readonly unknown[]>;
+/**
+ * The constraint an event map must satisfy, written against its own keys.
+ *
+ * The obvious spelling — `Record<string, readonly unknown[]>` — quietly forces every event
+ * map to be a type alias, because only aliases get an implicit index signature. Phrasing it
+ * as `keyof T` lets a plain `interface` satisfy it, which is what `GameEvents` above is.
+ */
+export type EventMap<T> = Record<keyof T, readonly unknown[]>;
 
 export type Listener<TArgs extends readonly unknown[]> = (...args: TArgs) => void;
 
 /**
- * A listener whose parameters are `never`, which every concrete listener is assignable to.
- * Used as the storage type so one Map can hold listeners of differing signatures without
- * `any` appearing anywhere.
+ * Storage, keyed by event name so each Set remembers the exact signature it holds.
+ *
+ * A `Map<keyof TEvents, Set<SomeWidenedListener>>` would need a cast in `emit` to narrow a
+ * listener back to its payload; a partial mapped type carries that relationship in the type
+ * itself, so this class contains no assertions at all.
  */
-type StoredListener = (...args: never[]) => void;
+type ListenerMap<TEvents extends EventMap<TEvents>> = {
+  [K in keyof TEvents]?: Set<Listener<TEvents[K]>>;
+};
 
-export class EventBus<TEvents extends EventMap> {
-  private readonly listeners = new Map<keyof TEvents, Set<StoredListener>>();
+export class EventBus<TEvents extends EventMap<TEvents>> {
+  private listeners: ListenerMap<TEvents> = {};
 
   public on<K extends keyof TEvents>(event: K, listener: Listener<TEvents[K]>): void {
-    throw new Error('not implemented');
+    let set = this.listeners[event];
+    if (set === undefined) {
+      set = new Set<Listener<TEvents[K]>>();
+      this.listeners[event] = set;
+    }
+
+    // A Set, so subscribing the same function twice still delivers once.
+    set.add(listener);
   }
 
   public off<K extends keyof TEvents>(event: K, listener: Listener<TEvents[K]>): void {
-    throw new Error('not implemented');
+    this.listeners[event]?.delete(listener);
   }
 
   public emit<K extends keyof TEvents>(event: K, ...args: TEvents[K]): void {
-    throw new Error('not implemented');
+    const set = this.listeners[event];
+    if (set === undefined) {
+      return;
+    }
+
+    // Iterated directly rather than through a copy, so dispatch allocates nothing. Deleting
+    // from a Set mid-iteration is well defined in JS, which is what a listener that
+    // unsubscribes itself during shutdown relies on.
+    for (const listener of set) {
+      listener(...args);
+    }
   }
 
   /** Drops every listener. Called on scene shutdown so a restart cannot double-subscribe. */
   public clear(): void {
-    throw new Error('not implemented');
+    this.listeners = {};
   }
 
   public listenerCount(event: keyof TEvents): number {
-    throw new Error('not implemented');
+    return this.listeners[event]?.size ?? 0;
   }
 }
 

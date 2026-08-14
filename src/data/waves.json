@@ -3,33 +3,75 @@
     {
       "durationSeconds": 25,
       "spawns": [
-        { "enemy": "grunt", "count": 12, "intervalSeconds": 1.6, "hpScale": 1, "speedScale": 1 }
+        {
+          "enemy": "grunt",
+          "count": 12,
+          "intervalSeconds": 1.6,
+          "hpScale": 1,
+          "speedScale": 1
+        }
       ]
     },
     {
       "durationSeconds": 30,
       "spawns": [
-        { "enemy": "grunt", "count": 20, "intervalSeconds": 1.2, "hpScale": 1.2, "speedScale": 1.05 }
+        {
+          "enemy": "grunt",
+          "count": 20,
+          "intervalSeconds": 1.2,
+          "hpScale": 1.2,
+          "speedScale": 1.05
+        }
       ]
     },
     {
       "durationSeconds": 30,
       "spawns": [
-        { "enemy": "grunt", "count": 28, "intervalSeconds": 0.95, "hpScale": 1.5, "speedScale": 1.1 }
+        {
+          "enemy": "grunt",
+          "count": 28,
+          "intervalSeconds": -5,
+          "hpScale": 1.5,
+          "speedScale": 1.1
+        }
       ]
     },
     {
       "durationSeconds": 35,
       "spawns": [
-        { "enemy": "grunt", "count": 30, "intervalSeconds": 0.85, "hpScale": 1.8, "speedScale": 1.15 },
-        { "enemy": "grunt", "count": 10, "intervalSeconds": 2.5, "hpScale": 3, "speedScale": 0.7 }
+        {
+          "enemy": "grunt",
+          "count": 30,
+          "intervalSeconds": 0.85,
+          "hpScale": 1.8,
+          "speedScale": 1.15
+        },
+        {
+          "enemy": "grunt",
+          "count": 10,
+          "intervalSeconds": 2.5,
+          "hpScale": 3,
+          "speedScale": 0.7
+        }
       ]
     },
     {
       "durationSeconds": 40,
       "spawns": [
-        { "enemy": "grunt", "count": 45, "intervalSeconds": 0.6, "hpScale": 2.2, "speedScale": 1.2 },
-        { "enemy": "grunt", "count": 14, "intervalSeconds": 2, "hpScale": 4, "speedScale": 0.8 }
+        {
+          "enemy": "grunt",
+          "count": 45,
+          "intervalSeconds": 0.6,
+          "hpScale": 2.2,
+          "speedScale": 1.2
+        },
+        {
+          "enemy": "grunt",
+          "count": 14,
+          "intervalSeconds": 2,
+          "hpScale": 4,
+          "speedScale": 0.8
+        }
       ]
     }
   ]

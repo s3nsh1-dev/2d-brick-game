@@ -23,15 +23,24 @@ export class Projectile extends Phaser.Physics.Arcade.Sprite {
 
   /** `dirX`/`dirY` must already be normalised. */
   public fire(x: number, y: number, dirX: number, dirY: number): void {
-    throw new Error('not implemented');
+    this.lifetimeRemaining = BALANCE.projectile.lifetimeSeconds;
+    this.enableBody(true, x, y, true, true);
+    this.setVelocity(dirX * BALANCE.projectile.speed, dirY * BALANCE.projectile.speed);
   }
 
   public despawn(): void {
-    throw new Error('not implemented');
+    // See Enemy.despawn: the body is already gone by the time a pool is released during
+    // scene teardown.
+    if (!this.body) {
+      return;
+    }
+
+    this.disableBody(true, true);
   }
 
   /** Returns true once the projectile has outlived its lifetime and should be released. */
   public tickLifetime(dt: number): boolean {
-    throw new Error('not implemented');
+    this.lifetimeRemaining -= dt;
+    return this.lifetimeRemaining <= 0;
   }
 }

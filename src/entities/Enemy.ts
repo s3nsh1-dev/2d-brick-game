@@ -11,7 +11,9 @@ import { TextureKey } from '../constants/keys';
 export class Enemy extends Phaser.Physics.Arcade.Sprite {
   public readonly health = new Health(BALANCE.enemy.baseHp);
 
-  private currentSpeed = BALANCE.enemy.baseSpeed;
+  // Annotated, not inferred: `BALANCE` is `as const`, so the initialiser's type is the
+  // literal 62 and an unannotated field would reject every other speed.
+  private currentSpeed: number = BALANCE.enemy.baseSpeed;
   private contactCooldown = 0;
 
   public constructor(scene: Phaser.Scene) {
@@ -30,23 +32,35 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
 
   /** True when enough time has passed since this grunt last hurt the player. */
   public get canDealContactDamage(): boolean {
-    throw new Error('not implemented');
+    return this.contactCooldown <= 0;
   }
 
   public spawn(x: number, y: number, maxHp: number, speed: number): void {
-    throw new Error('not implemented');
+    this.currentSpeed = speed;
+    this.contactCooldown = 0;
+    this.health.reset(maxHp);
+    this.enableBody(true, x, y, true, true);
   }
 
   public despawn(): void {
-    throw new Error('not implemented');
+    // Phaser shuts the Arcade Physics plugin down before this scene's SHUTDOWN handler
+    // runs, so a pool released during teardown reaches sprites whose body is already gone
+    // and `disableBody` would dereference it. The engine is destroying them anyway.
+    if (!this.body) {
+      return;
+    }
+
+    this.disableBody(true, true);
   }
 
   public tickContactCooldown(dt: number): void {
-    throw new Error('not implemented');
+    if (this.contactCooldown > 0) {
+      this.contactCooldown -= dt;
+    }
   }
 
   /** Starts the contact cooldown. Called after the damage has been applied. */
   public consumeContactDamage(): void {
-    throw new Error('not implemented');
+    this.contactCooldown = BALANCE.enemy.contactIntervalSeconds;
   }
 }

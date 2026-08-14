@@ -1,4 +1,6 @@
 import * as Phaser from 'phaser';
+import { BALANCE } from '../constants/balance';
+import { Depth } from '../constants/depths';
 import { SceneKey } from '../constants/keys';
 
 export interface GameOverData {
@@ -16,6 +18,10 @@ export class GameOverScene extends Phaser.Scene {
   private waveReached = 0;
   private xpTotal = 0;
 
+  private readonly restart = (): void => {
+    this.scene.start(SceneKey.GAME);
+  };
+
   public constructor() {
     super(SceneKey.GAME_OVER);
   }
@@ -26,6 +32,42 @@ export class GameOverScene extends Phaser.Scene {
   }
 
   public create(): void {
-    throw new Error('not implemented');
+    const { width, height } = BALANCE.world;
+    const { font } = BALANCE.ui;
+
+    this.add
+      .text(width / 2, height / 2 - 70, 'RUN OVER', {
+        fontFamily: font.family,
+        fontSize: font.titleSize,
+        color: font.color,
+      })
+      .setOrigin(0.5)
+      .setDepth(Depth.UI);
+
+    this.add
+      .text(
+        width / 2,
+        height / 2 + 10,
+        `reached wave ${String(this.waveReached)}  ·  ${String(this.xpTotal)} xp`,
+        {
+          fontFamily: font.family,
+          fontSize: font.bodySize,
+          color: font.color,
+        },
+      )
+      .setOrigin(0.5)
+      .setDepth(Depth.UI);
+
+    this.add
+      .text(width / 2, height / 2 + 60, 'press any key to run again', {
+        fontFamily: font.family,
+        fontSize: font.bodySize,
+        color: font.dimColor,
+      })
+      .setOrigin(0.5)
+      .setDepth(Depth.UI);
+
+    this.input.keyboard?.once(Phaser.Input.Keyboard.Events.ANY_KEY_DOWN, this.restart);
+    this.input.once(Phaser.Input.Events.POINTER_DOWN, this.restart);
   }
 }

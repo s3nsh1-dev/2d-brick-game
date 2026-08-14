@@ -1,6 +1,9 @@
 import * as Phaser from 'phaser';
+import { BALANCE } from '../constants/balance';
+import { Depth } from '../constants/depths';
 import { SceneKey } from '../constants/keys';
 import { eventBus } from '../core/EventBus';
+import { clamp } from '../core/math';
 
 // Runs in parallel with GameScene and knows nothing about it. Every number on screen
 // arrives as a bus event; there is no reference to Player anywhere in this file.
@@ -15,15 +18,21 @@ export class HUDScene extends Phaser.Scene {
   private xpText!: Phaser.GameObjects.Text;
 
   private readonly handleHealthChanged = (current: number, max: number): void => {
-    throw new Error('not implemented');
+    this.drawHpBar(current, max);
   };
 
   private readonly handleWaveStarted = (waveNumber: number): void => {
-    throw new Error('not implemented');
+    this.waveText.setText(`WAVE ${String(waveNumber)}`);
   };
 
   private readonly handleXpChanged = (total: number): void => {
-    throw new Error('not implemented');
+    this.xpText.setText(`XP ${String(total)}`);
+  };
+
+  private readonly shutdown = (): void => {
+    eventBus.off('player:health-changed', this.handleHealthChanged);
+    eventBus.off('wave:started', this.handleWaveStarted);
+    eventBus.off('xp:changed', this.handleXpChanged);
   };
 
   public constructor() {
@@ -31,16 +40,41 @@ export class HUDScene extends Phaser.Scene {
   }
 
   public create(): void {
-    throw new Error('not implemented');
+    const { margin, hpBar, font } = BALANCE.ui;
+    const textStyle = {
+      fontFamily: font.family,
+      fontSize: font.bodySize,
+      color: font.color,
+    };
+
+    this.hpBar = this.add.graphics().setDepth(Depth.UI);
+    this.waveText = this.add
+      .text(margin, margin + hpBar.height + 10, '', textStyle)
+      .setDepth(Depth.UI);
+    this.xpText = this.add
+      .text(BALANCE.world.width - margin, margin, '', textStyle)
+      .setOrigin(1, 0)
+      .setDepth(Depth.UI);
+
+    this.drawHpBar(BALANCE.player.maxHp, BALANCE.player.maxHp);
+    this.handleWaveStarted(1);
+    this.handleXpChanged(0);
+
+    eventBus.on('player:health-changed', this.handleHealthChanged);
+    eventBus.on('wave:started', this.handleWaveStarted);
+    eventBus.on('xp:changed', this.handleXpChanged);
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.shutdown);
   }
 
   private drawHpBar(current: number, max: number): void {
-    throw new Error('not implemented');
-  }
+    const { margin, hpBar } = BALANCE.ui;
+    const ratio = max <= 0 ? 0 : clamp(current / max, 0, 1);
 
-  private shutdown(): void {
-    eventBus.off('player:health-changed', this.handleHealthChanged);
-    eventBus.off('wave:started', this.handleWaveStarted);
-    eventBus.off('xp:changed', this.handleXpChanged);
+    this.hpBar.clear();
+    this.hpBar.fillStyle(hpBar.backgroundColor, 1);
+    this.hpBar.fillRect(margin, margin, hpBar.width, hpBar.height);
+    this.hpBar.fillStyle(hpBar.fillColor, 1);
+    this.hpBar.fillRect(margin, margin, hpBar.width * ratio, hpBar.height);
   }
 }

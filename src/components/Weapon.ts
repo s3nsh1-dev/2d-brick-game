@@ -12,20 +12,29 @@ export class Weapon {
   ) {}
 
   public get isReady(): boolean {
-    throw new Error('not implemented');
+    return this.cooldownRemaining <= 0;
   }
 
   public update(dt: number): void {
-    throw new Error('not implemented');
+    // Guarded so an idle weapon does not accumulate unbounded negative cooldown, which
+    // would buy free shots the moment a target appears.
+    if (this.cooldownRemaining > 0) {
+      this.cooldownRemaining -= dt;
+    }
   }
 
   /** Consumes the cooldown and returns true, or returns false and consumes nothing. */
   public tryFire(): boolean {
-    throw new Error('not implemented');
+    if (this.cooldownRemaining > 0) {
+      return false;
+    }
+
+    this.cooldownRemaining = this.cooldownSeconds;
+    return true;
   }
 
   /** Clears the cooldown so a restarted run fires immediately. */
   public reset(): void {
-    throw new Error('not implemented');
+    this.cooldownRemaining = 0;
   }
 }
