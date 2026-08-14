@@ -1,7 +1,9 @@
 import * as Phaser from 'phaser';
+import { Animator } from '../components/Animator';
 import { Health } from '../components/Health';
 import { BALANCE } from '../constants/balance';
 import { Depth } from '../constants/depths';
+import { AnimState, frameTextureKey } from '../core/animKeys';
 import type { EnemyDefinition } from '../data/schema';
 
 // Any enemy. Holds its own state and nothing else — it does not know where the player is or
@@ -16,19 +18,23 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   // literal 62 and an unannotated field would reject every other speed.
   private currentSpeed: number = BALANCE.enemy.baseSpeed;
   private contactCooldown = 0;
+  private knockbackRemaining = 0;
+
+  private readonly animator: Animator;
 
   /**
-   * @param texture Any baked enemy texture. The pool builds every enemy before a wave has
+   * @param actorId Any baked enemy actor id. The pool builds every enemy before a wave has
    * asked for a type, and a sprite must have a real texture from the start or Phaser warns
-   * and draws its missing-texture green. `spawn` overwrites it.
+   * and draws its missing-texture green. `spawn` retargets it.
    */
-  public constructor(scene: Phaser.Scene, texture: string) {
-    super(scene, 0, 0, texture);
+  public constructor(scene: Phaser.Scene, actorId: string) {
+    super(scene, 0, 0, frameTextureKey(actorId, AnimState.IDLE, 0));
 
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
     this.setDepth(Depth.ENEMY);
+    this.animator = new Animator(this, actorId);
     this.disableBody(true, true);
   }
 
@@ -36,9 +42,14 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     return this.currentSpeed;
   }
 
-  /** True when enough time has passed since this grunt last hurt the player. */
+  /** True when enough time has passed since this enemy last hurt the player. */
   public get canDealContactDamage(): boolean {
     return this.contactCooldown <= 0;
+  }
+
+  /** While true its velocity is the knockback, and pursuit must not overwrite it. */
+  public get isKnockedBack(): boolean {
+    return this.knockbackRemaining > 0;
   }
 
   /** `maxHp` and `speed` are already scaled; the definition supplies everything else. */
@@ -51,17 +62,32 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   ): void {
     this.currentSpeed = speed;
     this.contactCooldown = 0;
+    this.knockbackRemaining = 0;
     this.health.reset(maxHp);
 
-    this.setTexture(definition.id);
-    // `setTexture` resizes the sprite but not the physics body, so a pooled brute reused as
-    // a swarmer would keep hitting at the brute's 30px reach.
+    // A pooled enemy is reused across types, and the frames a brute plays are not the
+    // frames a swarmer plays.
+    this.animator.retarget(definition.id);
+    // `setBodySize`, because the animation sets the texture but never the physics body, and
+    // a pooled brute reused as a swarmer would keep hitting at the brute's 30px reach.
     this.setBodySize(definition.size, definition.size);
 
     this.enableBody(true, x, y, true, true);
+
+    // Enemies are steered every frame for their whole life, so walking is their resting
+    // state; `idle` is baked for every actor but only the player ever stands still.
+    this.animator.play(AnimState.WALK);
+  }
+
+  /** Applies damage and flinches. See `Player.takeDamage` for why the animation is here. */
+  public takeDamage(amount: number): void {
+    this.health.damage(amount);
+    this.animator.playOnce(AnimState.HIT);
   }
 
   public despawn(): void {
+    this.animator.reset();
+
     // Phaser shuts the Arcade Physics plugin down before this scene's SHUTDOWN handler
     // runs, so a pool released during teardown reaches sprites whose body is already gone
     // and `disableBody` would dereference it. The engine is destroying them anyway.
@@ -76,6 +102,24 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     if (this.contactCooldown > 0) {
       this.contactCooldown -= dt;
     }
+  }
+
+  public tickKnockback(dt: number): void {
+    if (this.knockbackRemaining > 0) {
+      this.knockbackRemaining -= dt;
+    }
+  }
+
+  /**
+   * Throws this enemy along an already-normalised direction and suspends its pursuit for
+   * the knockback's duration. Re-applying while airborne restarts the clock rather than
+   * adding to it, so a stream of hits holds an enemy off instead of launching it.
+   *
+   * @param dirX Normalised. CombatSystem decides the direction; the speed is balance.
+   */
+  public applyKnockback(dirX: number, dirY: number): void {
+    this.knockbackRemaining = BALANCE.combat.knockback.durationSeconds;
+    this.setVelocity(dirX * BALANCE.combat.knockback.speed, dirY * BALANCE.combat.knockback.speed);
   }
 
   /** Starts the contact cooldown. Called after the damage has been applied. */

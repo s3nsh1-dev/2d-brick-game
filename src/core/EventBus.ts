@@ -18,6 +18,35 @@ export interface GameEvents {
   'xp:changed': [total: number];
   /** The run is over. Carries the final stats GameOverScene displays. */
   'run:ended': [waveReached: number, xpTotal: number];
+
+  // Presentation events. Nothing in the gameplay path listens to any of these — they exist
+  // so AudioSystem and VfxSystem can react without gameplay knowing either exists.
+  //
+  // Each fires at most a few times a second: `weapon:fired` is bounded by the weapon
+  // cooldown, `enemy:damaged` by the projectiles that cooldown produces, `player:damaged`
+  // by the per-enemy contact interval. That is why they are safe on a bus whose `emit`
+  // allocates a rest-argument array, and why the collision callbacks next to them are still
+  // direct calls: those fire per contact per frame.
+
+  /** An enemy took damage at this position. */
+  'enemy:damaged': [x: number, y: number, amount: number];
+  /** The player took damage at this position. */
+  'player:damaged': [x: number, y: number, amount: number];
+  /** A projectile left the weapon at this position. */
+  'weapon:fired': [x: number, y: number];
+  /** A gem was picked up at this position. */
+  'gem:collected': [x: number, y: number];
+
+  /**
+   * The player reached a new level, and these are the upgrades on offer.
+   *
+   * The offers are three positional ids rather than an array because pick-1-of-3 is the
+   * design, not a parameter, and because an array payload would be one allocation per level
+   * on a bus whose whole point is that payloads are primitives.
+   */
+  'level:up': [level: number, offerA: string, offerB: string, offerC: string];
+  /** The player picked one of the offers. Carries the upgrade id. */
+  'upgrade:chosen': [upgradeId: string];
 }
 
 /**

@@ -1,4 +1,5 @@
 import { BALANCE } from '../constants/balance';
+import { StatId } from '../constants/stats';
 import type { EventBus, GameEvents } from '../core/EventBus';
 import { distanceSquared, scratchA, setLength } from '../core/math';
 import type { ObjectPool } from '../core/ObjectPool';
@@ -37,7 +38,10 @@ export class PickupSystem implements System {
    * it, so this system has nothing of its own to advance by time.
    */
   public update(_dt: number): void {
-    const magnetRadiusSquared = BALANCE.gem.magnetRadius * BALANCE.gem.magnetRadius;
+    // Read every frame rather than cached: it is upgradeable, and invariant 14 makes the
+    // value a computation whose cached copy goes stale the moment a level-up lands.
+    const magnetRadius = this.player.stats.get(StatId.MAGNET_RADIUS);
+    const magnetRadiusSquared = magnetRadius * magnetRadius;
 
     for (const gem of this.gems.active) {
       const distance = distanceSquared(this.player.x, this.player.y, gem.x, gem.y);
@@ -62,9 +66,12 @@ export class PickupSystem implements System {
       return;
     }
 
+    const { x, y } = gem;
+
     this.xpTotal += gem.value;
     this.gems.release(gem);
     this.bus.emit('xp:changed', this.xpTotal);
+    this.bus.emit('gem:collected', x, y);
   }
 
   public destroy(): void {

@@ -6,17 +6,16 @@ month or an agent picking up a task, start here.
 
 | | |
 |---|---|
-| **Stage** | 2 of 3 — **Pass A complete**, Passes B–E not started. Stage 1 complete |
-| **Next** | [`STAGE_2_INSTRUCTIONS.md`](STAGE_2_INSTRUCTIONS.md) §7 Pass B — presentation. Stage 3 is gated behind the whole stage |
+| **Stage** | 2 of 3 — **complete**. Stage 3 not started |
+| **Next** | [`STAGE_3_instructions.md`](STAGE_3_instructions.md). Its readiness gate — §9 of the Stage 2 brief — was re-checked when Stage 2 landed and all seven items hold |
 | **Last verified** | 2026-08-14 |
-| **Health** | `typecheck` ✅ · `lint` ✅ 0 warnings · `test` ✅ 50 passed / 5 files · `build` ✅ 0 warnings · browser console ✅ empty |
-| **Size** | 31 TypeScript files, ~2,180 lines |
+| **Health** | `typecheck` ✅ · `lint` ✅ 0 warnings · `test` ✅ 127 passed / 9 files · `build` ✅ 0 warnings · browser console ✅ empty |
+| **Size** | 42 TypeScript files |
 | **Runtime dependencies** | `phaser@4.2.1`, `zod@4` — nothing else |
-| **Assets** | None. All art is coloured rectangles generated at boot, one per enemy definition |
+| **Assets** | None. Every frame is baked at boot and every sound is synthesised at boot — no images, no audio files |
 
-> Stage 2 is one pass of five in. Read the ledger in
-> [`STAGE_2_INSTRUCTIONS.md`](STAGE_2_INSTRUCTIONS.md) §1b for what is and is not built,
-> rather than inferring progress from the branch name.
+> Stage 2 is done, all five passes. The per-feature ledger is
+> [`STAGE_2_INSTRUCTIONS.md`](STAGE_2_INSTRUCTIONS.md) §1b.
 
 ---
 
@@ -34,9 +33,17 @@ Everything listed here is implemented, verified in a browser, and covered by the
 | **Difficulty** | A real fail state. A stationary player dies in wave 3; the curve is tuned against the weapon's 37.5 dps clear rate | `data/waves.json` |
 | **Damage** | Both directions. Enemy contact damage is on a per-enemy cooldown, not per frame | `systems/CombatSystem.ts`, `components/Health.ts` |
 | **XP gems** | Drop on death, pulled in within magnet range, increment a counter | `systems/PickupSystem.ts`, `entities/XpGem.ts` |
-| **HUD** | Health bar, wave counter, XP counter — in a parallel scene holding no game references | `scenes/HUDScene.ts` |
-| **Run flow** | Menu → game → death → summary → restart | `scenes/` |
-| **Content validation** | `waves.json` is zod-validated at boot; malformed content crashes immediately with the exact failing path | `data/schema.ts` |
+| **HUD** | Health bar, wave, XP and level — in a parallel scene holding no game references | `scenes/HUDScene.ts` |
+| **Animation** | Idle / walk / hit per actor. Five frames each, baked at boot; no atlas, no image files | `scenes/PreloadScene.ts`, `core/animKeys.ts`, `components/Animator.ts` |
+| **Audio** | Six SFX and a two-voice music loop, all synthesised into WAV buffers at boot. Identical sounds inside 50ms coalesce | `systems/AudioSystem.ts`, `core/audioSynth.ts` |
+| **VFX** | Hit sparks, death bursts, pickup sparkles, floating damage numbers, screen shake, damage flash | `systems/VfxSystem.ts`, `entities/FloatingText.ts` |
+| **Game feel** | Knockback away from the shot; the whole simulation freezes 45ms on a kill | `systems/CombatSystem.ts` |
+| **Progression** | XP curve, levels, pick-1-of-3 upgrades over a paused game. Six upgrades, stack-capped and weighted | `systems/ProgressionSystem.ts`, `core/xpCurve.ts`, `scenes/UpgradeScene.ts` |
+| **Stats** | Immutable bases plus modifiers, recomputed on every read. Removing a modifier restores the exact base | `core/StatBlock.ts`, `components/Stats.ts` |
+| **Persistence** | High score, best wave and total runs in `localStorage`, versioned and zod-validated, with a v1→v2 migration | `core/SaveStore.ts` |
+| **Pause** | Escape freezes the run and layers a screen over it, still rendering | `scenes/PauseScene.ts` |
+| **Run flow** | Menu → game → (level-ups, pauses) → death → summary with records → restart | `scenes/` |
+| **Content validation** | `waves.json`, `enemies.json` and `upgrades.json` are zod-validated at boot; malformed content crashes immediately with the exact failing path | `data/schema.ts` |
 | **Restart safety** | Two consecutive restarts behave identically to one, verified by listener census | `scenes/GameScene.ts` |
 
 ### Verified behaviours worth not regressing
@@ -44,8 +51,14 @@ Everything listed here is implemented, verified in a browser, and covered by the
 These were established by measurement, not inspection. If you change the relevant code, re-check them.
 
 - **Listener census across restarts.** Driving `run:ended` through the real path and reading
-  `eventBus.listenerCount` gives an identical result every run — `player:health-changed` 1,
-  `wave:started` 2, `xp:changed` 2, `enemy:died` 1, `run:ended` 1 — and all zeros between runs.
+  `eventBus.listenerCount` gives an identical result every run — `wave:started` 2,
+  `player:health-changed` 1, `enemy:died` 3, `xp:changed` 3, `run:ended` 1, `enemy:damaged` 2,
+  `player:damaged` 2, `weapon:fired` 1, `gem:collected` 2, `level:up` 3, `upgrade:chosen` 1 —
+  and all zeros between runs. Verified across two consecutive restarts on 2026-08-14. Measure it from a system's own `bus` field: importing `EventBus.ts` from
+  devtools gets you a *second* module instance and a census that looks doubled.
+- **A stationary player dies in wave 3**, with roughly 20 enemies alive. Measured in-browser.
+- **Deleting `AudioSystem` and `VfxSystem`** from the array in `GameScene.create` leaves a
+  playable, silent, unadorned game with identical timing.
 - **Malformed content fails at boot**, in `PreloadScene`, naming the exact JSON path.
 - **The console stays empty.** No errors, no warnings, no stray `console.log`.
 
@@ -56,7 +69,7 @@ These were established by measurement, not inspection. If you change the relevan
 | # | Issue | Impact | Owner |
 |---|---|---|---|
 | 1 | 20 browser-test artefacts (`.playwright-mcp/*`, `menu.png`) are tracked in git and not in `.gitignore`. | Repo noise; every clone carries ~20 screenshots. | `git rm -r --cached .playwright-mcp menu.png` and add both to `.gitignore`. Standalone chore, not part of any stage |
-| 2 | The "moves competently" difficulty target is verified by a **model**, not by play. A kiting bot in a Node reproduction of the frame loop dies in waves 5–6; nobody has sat down and played it. | The stationary-player target was measured in the real browser and is solid. The moving-player band is an estimate, and Pass D will retune against it anyway. | Whoever plays it first. Worth ten minutes before Pass D |
+| 2 | The "moves competently" difficulty target is verified by a **model**, not by play. A kiting bot in a Node reproduction of the frame loop dies in waves 5–6; nobody has sat down and played it. | The stationary-player target was measured in the real browser and is solid. The moving-player band is an estimate, and upgrades now push a real run further than the bot's. | Whoever plays it first. Worth ten minutes before any Stage 3 balance work |
 
 None of these block play.
 
@@ -75,11 +88,11 @@ is the failure mode this exercise exists to prevent.
 ```mermaid
 flowchart LR
     S1["<b>Stage 1 — COMPLETE</b><br/>playable core<br/>movement · auto-fire · waves<br/>XP · HP · game over"]
-    S2["<b>Stage 2 — not started</b><br/>feel<br/>art · audio · particles<br/>upgrades · enemy variety · save"]
+    S2["<b>Stage 2 — COMPLETE</b><br/>feel<br/>art · audio · particles<br/>upgrades · enemy variety · save"]
     S3["<b>Stage 3 — not started</b><br/>systems<br/>engine-free simulation<br/>determinism · replay"]
     S1 --> S2 --> S3
     style S1 fill:#1f6f4a,stroke:#7fd4a8,color:#eafff4
-    style S2 fill:#3a3357,stroke:#a99ad6,color:#f2eeff
+    style S2 fill:#1f6f4a,stroke:#7fd4a8,color:#eafff4
     style S3 fill:#2b2b33,stroke:#6f6f80,color:#d8d8e2
 ```
 
@@ -98,20 +111,22 @@ advance where the design is likely to bend.
 
 Effort is rough: **S** ≈ under an hour, **M** ≈ a focused session, **L** ≈ multiple sessions.
 
-### Stage 2 — feel and content
+### Stage 2 — feel and content — **all delivered 2026-08-14**
 
-| Upgrade | What it adds | Touches | Stresses | Effort |
-|---|---|---|---|---|
-| ~~**Data-driven enemies**~~ | **Done, Pass A (2026-08-14).** `enemies.json`; swarmer and brute as definitions, not classes. Adding a fourth type is two JSON edits | — | It held: the only code edits were one-time wiring in `PreloadScene` and `GameScene` | — |
-| **Per-frame textures + animations** | Replaces static baked rectangles with baked frames; idle/walk/hit states. **Not an atlas** — see `STAGE_2_INSTRUCTIONS.md` §4a | `scenes/PreloadScene.ts`, new `components/Animator.ts`, `constants/keys.ts` | Nothing structural — mostly a preload change | **M** |
-| **Audio** | SFX for shoot/hit/death/pickup, one music loop, volume control | New `systems/AudioSystem.ts` | "Presentation is event-driven" — audio may only *subscribe*, never be called by gameplay | **M** |
-| **VFX** | Hit sparks, death bursts, floating damage numbers | New `systems/VfxSystem.ts`, new `entities/FloatingText.ts` | Pooling — emitters must be created once at init, never per hit | **M** |
-| **Game feel** | Screen shake, damage flash, knockback, hit-stop | `systems/CombatSystem.ts` (knockback, hit-stop) and `VfxSystem` (shake, flash) | The gameplay/presentation line — knockback and hit-stop move things, so they are **not** presentation | **S** |
-| **Progression** | XP curve, levels, pick-1-of-3 upgrade offers, stat modifiers | New `core/xpCurve.ts`, `core/StatBlock.ts`, `components/Stats.ts`, `systems/ProgressionSystem.ts` | "Stats are computed, never mutated" — add/remove a modifier must restore the exact base value | **L** |
-| **Persistence** | Versioned, schema-validated localStorage save | New `core/SaveStore.ts` | "`core/` imports nothing" — storage must arrive as an injected adapter so it tests without a browser | **M** |
-| **Pause + upgrade scenes** | Scenes layered over a paused `GameScene` | New `scenes/PauseScene.ts`, `scenes/UpgradeScene.ts` | Scene lifecycle — a paused scene's timers must not fire | **M** |
+Kept as a record of what each item was expected to stress, and what actually gave.
 
-Full brief, with corrections applied against the shipped code:
+| Upgrade | Delivered | What it stressed, and what happened |
+|---|---|---|
+| **Data-driven enemies** | `enemies.json`; swarmer and brute as definitions. A fourth type is two JSON edits | "Content is data" held. Two one-time scene edits were needed — `PreloadScene` (predicted) and `GameScene` (not) |
+| **Per-frame textures + animations** | Five baked frames per actor, twelve animations, `Animator`. No atlas | Nothing structural, as expected. The frame array names its own texture per frame, so separately baked squares compose fine |
+| **Audio** | Six SFX and a music loop, synthesised at boot into WAV buffers | "Presentation is event-driven" held: `AudioSystem` only subscribes. Phaser unlocks the context itself — the manual unlock the brief once called for was wrong |
+| **VFX** | Three emitters, pooled floating text, shake, flash | Pooling held. Emitters are built once in the constructor and re-triggered with `explode(count, x, y)` |
+| **Game feel** | Knockback and hit-stop, both in `CombatSystem` | The gameplay/presentation line held, and sharpened: hit-stop needed the scene to pause the *physics world*, because skipping systems alone still lets Phaser step every body |
+| **Progression** | XP curve, levels, six weighted upgrades, `UpgradeScene` over a paused game | "Stats are computed, never mutated" held, and forced a real change: `Weapon` gave up its damage/cooldown/range fields and became a pure timer |
+| **Persistence** | Versioned `SaveStore` with an injected adapter and a v1→v2 migration | "`core/` imports nothing" held. Tested against a `Map` in bare Node, including quota-exceeded and corrupt JSON |
+| **Pause + upgrade scenes** | `PauseScene` and `UpgradeScene`, both layered over `scene.pause()` | Scene lifecycle held trivially, because the game owns no `TimerEvent` and no tween — every clock is a number decremented by `dt` |
+
+Full brief and per-feature ledger, including the two corrections measurement forced:
 [`STAGE_2_INSTRUCTIONS.md`](STAGE_2_INSTRUCTIONS.md).
 
 ### Stage 3 — systems

@@ -1,6 +1,8 @@
 import * as Phaser from 'phaser';
 import { z } from 'zod';
 import { DataKey } from '../constants/keys';
+import { STAT_IDS } from '../constants/stats';
+import { ModifierKind } from '../core/StatBlock';
 
 // Runtime shape of everything under src/data. Parsed with `.parse()`, never `.safeParse()`:
 // malformed content must crash at boot, loudly, not produce an empty wave 7.
@@ -65,6 +67,34 @@ export type WaveData = z.infer<ReturnType<typeof makeWaveDataSchema>>;
 export type Wave = WaveData['waves'][number];
 export type SpawnEntry = Wave['spawns'][number];
 
+/**
+ * One upgrade offer.
+ *
+ * `stat` is validated against the shared `StatId` vocabulary rather than a free string, so
+ * an upgrade pointing at a stat that does not exist fails at boot instead of silently doing
+ * nothing when a player picks it — which would be a very quiet bug indeed.
+ */
+export const upgradeDefinitionSchema = z.strictObject({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  /** Shown on the offer card. Written to match `amount`; nothing checks that it does. */
+  description: z.string().min(1),
+  stat: z.enum(STAT_IDS),
+  kind: z.enum([ModifierKind.FLAT, ModifierKind.MULTIPLIER]),
+  amount: z.number(),
+  /** How many times one run may take this. Offers stop including it at the cap. */
+  maxStacks: z.number().int().positive(),
+  /** Relative likelihood of being offered. */
+  weight: z.number().positive(),
+});
+
+export const upgradeDataSchema = z.strictObject({
+  upgrades: z.array(upgradeDefinitionSchema).min(1),
+});
+
+export type UpgradeDefinition = z.infer<typeof upgradeDefinitionSchema>;
+export type UpgradeData = z.infer<typeof upgradeDataSchema>;
+
 // The functions below are the only places Phaser's untyped stores are read.
 //
 // `Cache.get` and `DataManager.get` are both declared `any`, which would spread through
@@ -85,9 +115,19 @@ export function readWaveDataFromCache(
   return makeWaveDataSchema(enemies).parse(cache.json.get(DataKey.WAVES) as unknown);
 }
 
+/** As above, for upgrades. */
+export function readUpgradeDataFromCache(cache: Phaser.Cache.CacheManager): UpgradeData {
+  return upgradeDataSchema.parse(cache.json.get(DataKey.UPGRADES) as unknown);
+}
+
 /** Reads the validated enemy definitions back out of the game registry. */
 export function getEnemyData(registry: Phaser.Data.DataManager): EnemyData {
   return enemyDataSchema.parse(registry.get(DataKey.ENEMIES) as unknown);
+}
+
+/** Reads the validated upgrade definitions back out of the game registry. */
+export function getUpgradeData(registry: Phaser.Data.DataManager): UpgradeData {
+  return upgradeDataSchema.parse(registry.get(DataKey.UPGRADES) as unknown);
 }
 
 /** Reads the validated wave data back out of the game registry. */

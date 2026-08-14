@@ -2,33 +2,42 @@
 
 ## Current stage
 
-**Stage 2 — Pass A complete. Passes B–E not started.** `typecheck`, `lint`, `test` (50 specs
-across 5 files) and `build` pass clean, and the game runs with an empty browser console. Last
-verified 2026-08-14.
+**Stage 2 — complete. Stage 3 not started.** All five passes are done; `typecheck`, `lint`,
+`test` (127 specs across 9 files) and `build` pass clean, and the game runs with an empty
+browser console. Last verified 2026-08-14.
 
-Pass A added data-driven enemy definitions and the difficulty curve. Read
-`docs/STAGE_2_INSTRUCTIONS.md` for the remaining passes and what Stage 2 must deliver before
-Stage 3 can begin.
+Stage 1 was the playable core. Stage 2 added, in five passes: data-driven enemy definitions
+and a real difficulty curve (A); baked frame animations, synthesised audio, particles,
+floating damage numbers, screen shake and damage flash (B); knockback and hit-stop (C); an XP
+curve, levels, computed stats and pick-1-of-3 upgrades (D); versioned persistence and a pause
+screen (E).
 
-Stage 1 is: player movement, auto-aim weapon firing pooled projectiles, one enemy type with
-chase AI, wave-based spawning driven by JSON, collision damage in both directions, XP gems,
-an HP bar and wave counter in a parallel HUD scene, and game over with restart.
-
-Everything else — sprites, audio, particles, screen shake, upgrades, persistence, mobile
-controls, settings, i18n — is a later Stage 2 pass or Stage 3. It is not built, not stubbed
-and not prepared for. See `AGENTS.md` for the stage table.
+Stage 3 changes what the program *is* — the simulation stops depending on Phaser. Nothing in
+this repo anticipates it beyond the readiness gate in `docs/STAGE_2_INSTRUCTIONS.md` §9.
+Mobile controls, settings, i18n and multiplayer are not planned for any stage.
 
 ## The shape of a frame
 
 ```
 GameScene.update(time, delta)
   dt = min(delta / 1000, BALANCE.time.maxDeltaSeconds)   <- the only ms→s conversion
+  combat.tickHitStop(dt) ? pause physics world, return   <- the frame does not happen
   player.update(dt)                                       <- input becomes velocity
   SpawnSystem.update(dt)                                  <- wave timeline, enemies enter
   CombatSystem.update(dt)                                 <- pursuit, firing, projectile age
   PickupSystem.update(dt)                                 <- gem magnet
+  ProgressionSystem.update(dt)                            <- nothing; levels are event-driven
+  AudioSystem.update(dt)                                  <- sfx throttle clocks
+  VfxSystem.update(dt)                                    <- floating damage numbers age
   (Phaser then steps the physics world and runs colliders)
 ```
+
+**Hit-stop is the one thing above the player.** `CombatSystem` owns the clock, because it
+owns the death that starts it, but the scene has to ask before deciding whether the frame
+happens at all. Skipping the systems alone would not be a freeze: Phaser steps the physics
+world after `update` returns, so every body would keep drifting through the pause. The scene
+pauses the world to match, which is wiring an engine call to a decision a system made — not
+a rule of its own.
 
 `dt` is seconds everywhere below this line. The cap exists so that a tab restored after
 thirty seconds in the background advances one modest step instead of teleporting every body
@@ -43,11 +52,24 @@ building past the stage. This is the one place the scene touches an entity per f
 | Scene | Job | Leaves to |
 |---|---|---|
 | `BootScene` | Nothing yet. The seam where boot-time configuration will go. | `PreloadScene` |
-| `PreloadScene` | Loads and validates `enemies.json` and `waves.json`, bakes one texture per enemy definition plus the player, projectile and gem. | `MenuScene` |
+| `PreloadScene` | Loads and validates `enemies.json`, `waves.json` and `upgrades.json`; bakes five frames per actor plus the projectile, gem and spark; registers every animation. | `MenuScene` |
 | `MenuScene` | Title card. Any key or click starts a run. | `GameScene` |
 | `GameScene` | Builds the world, owns the pools and systems, runs the frame. | `GameOverScene` |
-| `HUDScene` | Runs in parallel with `GameScene`. Draws HP, wave and XP. | stopped by `GameScene` |
-| `GameOverScene` | Final stats and restart. | `GameScene` |
+| `HUDScene` | Runs in parallel with `GameScene`. Draws HP, wave, XP and level. | stopped by `GameScene` |
+| `UpgradeScene` | Pick-1-of-3, layered over a **paused** `GameScene`. Resumes it on choice. | resumes `GameScene` |
+| `PauseScene` | Escape. Layered over a paused `GameScene` the same way. | resumes `GameScene` |
+| `GameOverScene` | Final stats, the persisted records, and restart. | `GameScene` |
+
+`UpgradeScene` and `PauseScene` use `scene.pause()`, never `scene.sleep()`: a paused scene
+stops updating but keeps rendering, so the frozen arena stays visible under both. Each
+resumes `GameScene` itself, because a paused scene cannot act on the signal that would tell
+it to wake up.
+
+**No `Phaser.Time.TimerEvent` and no tween exists anywhere in the game**, which is why
+pausing is safe rather than delicate. Every clock in the codebase — spawn intervals, weapon
+cooldown, contact cooldown, knockback, hit-stop, floating text, SFX throttles — is a number
+decremented by `dt` inside something the scene stops calling. A paused scene therefore cannot
+have a timer fire behind its back, because there are none to fire.
 
 `GameScene` launches `HUDScene` in parallel and stops it again when the run ends. `HUDScene`
 holds no reference to `GameScene`, to `Player`, or to anything inside the run — every number
@@ -95,8 +117,22 @@ renderer, never create a game object with `new`, and never reach for a scene.
 | System | Owns |
 |---|---|
 | `SpawnSystem` | The wave timeline. Acquires enemies and places them on the off-screen ring. |
-| `CombatSystem` | The fight loop: enemy pursuit, weapon cooldown and auto-aim, projectile lifetime, damage in both directions, death. |
+| `CombatSystem` | The fight loop: enemy pursuit, weapon cooldown and auto-aim, projectile lifetime, damage in both directions, death, **knockback and hit-stop**. |
 | `PickupSystem` | Gems: spawning them on death, pulling them in, converting them to XP. |
+| `ProgressionSystem` | Levels: turning an XP total into a level, offering three upgrades, applying the chosen one. |
+| `AudioSystem` | Every sound. Synthesises the whole set at init, throttles repeats, plays the music loop. |
+| `VfxSystem` | Every particle, camera effect and damage number. |
+
+The last two are **presentation**, and they are the only systems that touch a Phaser API at
+runtime. That is deliberate and it is the one place the folder's "no runtime Phaser" habit is
+broken on purpose — see the note in `docs/STAGE_2_INSTRUCTIONS.md` §9, item 3. The three
+gameplay systems above them still import Phaser not at all.
+
+Knockback and hit-stop live in `CombatSystem` rather than `VfxSystem` because of a single
+test: **does deleting it change where anything ends up?** Screen shake, damage flash,
+particles and floating text do not — delete them and every body is in the same place on the
+same frame. Knockback moves bodies and hit-stop stops time, so both are gameplay wearing a
+juice costume.
 
 Enemy pursuit sits in `CombatSystem` rather than in a movement system for the same reason
 player input sits in the scene: Stage 1 permits three systems, and pursuit belongs with the
@@ -127,9 +163,25 @@ directory that must stay portable.
 |---|---|---|---|
 | `wave:started` | `waveNumber` | `SpawnSystem` | `HUDScene`, `CombatSystem` |
 | `player:health-changed` | `current`, `max` | `CombatSystem` | `HUDScene` |
-| `enemy:died` | `x`, `y` | `CombatSystem` | `PickupSystem` |
-| `xp:changed` | `total` | `PickupSystem` | `HUDScene`, `CombatSystem` |
+| `enemy:died` | `x`, `y` | `CombatSystem` | `PickupSystem`, `AudioSystem`, `VfxSystem` |
+| `xp:changed` | `total` | `PickupSystem` | `HUDScene`, `CombatSystem`, `ProgressionSystem` |
 | `run:ended` | `waveReached`, `xpTotal` | `CombatSystem` | `GameScene` |
+| `enemy:damaged` | `x`, `y`, `amount` | `CombatSystem` | `AudioSystem`, `VfxSystem` |
+| `player:damaged` | `x`, `y`, `amount` | `CombatSystem` | `AudioSystem`, `VfxSystem` |
+| `weapon:fired` | `x`, `y` | `CombatSystem` | `AudioSystem` |
+| `gem:collected` | `x`, `y` | `PickupSystem` | `AudioSystem`, `VfxSystem` |
+| `level:up` | `level`, `offerA`, `offerB`, `offerC` | `ProgressionSystem` | `GameScene`, `HUDScene`, `AudioSystem` |
+| `upgrade:chosen` | `upgradeId` | `UpgradeScene` | `ProgressionSystem` |
+
+The four presentation events exist so `AudioSystem` and `VfxSystem` can react without
+gameplay knowing either exists. Each is bounded by a cooldown — `weapon:fired` by the
+weapon's, `enemy:damaged` by the projectiles that cooldown produces, `player:damaged` by the
+per-enemy contact interval — which is what keeps them safe on a bus whose `emit` allocates a
+rest-argument array. The collision callbacks beside them are still direct calls, because
+those fire per contact per frame.
+
+`level:up` carries its three offers as positional ids rather than an array: pick-1-of-3 is
+the design rather than a parameter, and an array payload would allocate.
 
 ### What does not go through the bus
 
@@ -154,6 +206,10 @@ Three files hold numbers, and the split is deliberate. A finished enemy stat is
   grunt is 1×1; the swarmer is fast and fragile, the brute slow and tanky.
 - **`src/data/waves.json`** — escalation. Per wave: a duration, and spawn entries giving an
   enemy id, a count, an interval, and a further `hpScale`/`speedScale`.
+- **`src/data/upgrades.json`** — what a level-up may offer. Per upgrade: the stat it touches,
+  whether it is flat or a multiplier, its amount, its stack cap and its weight. The `stat`
+  field is validated against `constants/stats.ts`, so an upgrade pointing at a stat that does
+  not exist fails at boot rather than doing nothing when a player picks it.
 
 Base stats are balance. Type identity and escalation are content, and only content belongs
 in a data file.
@@ -186,6 +242,11 @@ rather than early.
 | I want to… | Touch |
 |---|---|
 | Add an entity | A new file in `src/entities/`, its stats in `constants/balance.ts`, a pool and group in `GameScene.create()`. |
+| Add an upgrade | `src/data/upgrades.json`. Nothing else, as long as it names a stat that exists. |
+| Add a stat an upgrade can touch | `constants/stats.ts`, a block in `components/Stats.ts`, and the consumer that reads it. |
+| Add a sound | A tone spec in `BALANCE.audio.sfx`, a key in `SoundKey`, a subscription in `AudioSystem`. No files. |
+| Add a visual effect | An entry in `BALANCE.vfx`, an emitter built once in `VfxSystem`'s constructor, a subscription to trigger it. |
+| Add an animation state | `core/animKeys.ts` — the frame count and the vocabulary — then whatever plays it. `PreloadScene` bakes what the map names. |
 | Add an enemy type | `src/data/enemies.json`, then name it in `src/data/waves.json`. Nothing else. The definition's `id` is its texture key, `PreloadScene` bakes whatever the file lists, and one `Enemy` class serves every type. A new enemy *class* is a different question — it would need its own pool and group in `GameScene.create()`, which is why the swarmer and the brute are definitions instead. |
 | Add a system | A new file in `src/systems/` implementing `System`, constructed and pushed in `GameScene.create()`. |
 | Add a wave | `src/data/waves.json`. Nothing else. |

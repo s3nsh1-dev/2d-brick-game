@@ -1,0 +1,64 @@
+{
+  "upgrades": [
+    {
+      "id": "sharper-rounds",
+      "name": "Sharper Rounds",
+      "description": "+25% damage",
+      "stat": "weaponDamage",
+      "kind": "multiplier",
+      "amount": 0.25,
+      "maxStacks": 6,
+      "weight": 3
+    },
+    {
+      "id": "heavy-slugs",
+      "name": "Heavy Slugs",
+      "description": "+6 damage",
+      "stat": "weaponDamage",
+      "kind": "flat",
+      "amount": 6,
+      "maxStacks": 4,
+      "weight": 2
+    },
+    {
+      "id": "quick-trigger",
+      "name": "Quick Trigger",
+      "description": "-15% time between shots",
+      "stat": "weaponCooldown",
+      "kind": "multiplier",
+      "amount": -0.15,
+      "maxStacks": 5,
+      "weight": 3
+    },
+    {
+      "id": "long-barrel",
+      "name": "Long Barrel",
+      "description": "+20% range",
+      "stat": "weaponRange",
+      "kind": "multiplier",
+      "amount": 0.2,
+      "maxStacks": 4,
+      "weight": 2
+    },
+    {
+      "id": "light-boots",
+      "name": "Light Boots",
+      "description": "+12% move speed",
+      "stat": "moveSpeed",
+      "kind": "multiplier",
+      "amount": 0.12,
+      "maxStacks": 5,
+      "weight": 3
+    },
+    {
+      "id": "wide-magnet",
+      "name": "Wide Magnet",
+      "description": "+45 gem pickup range",
+      "stat": "magnetRadius",
+      "kind": "flat",
+      "amount": 45,
+      "maxStacks": 4,
+      "weight": 2
+    }
+  ]
+}

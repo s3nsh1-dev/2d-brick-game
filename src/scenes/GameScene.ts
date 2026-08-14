@@ -3,15 +3,21 @@ import { BALANCE } from '../constants/balance';
 import { SceneKey } from '../constants/keys';
 import { eventBus } from '../core/EventBus';
 import { ObjectPool } from '../core/ObjectPool';
-import { getEnemyData, getWaveData } from '../data/schema';
+import { getEnemyData, getUpgradeData, getWaveData } from '../data/schema';
 import { Enemy } from '../entities/Enemy';
 import { Player } from '../entities/Player';
 import { Projectile } from '../entities/Projectile';
 import { XpGem } from '../entities/XpGem';
+import { AudioSystem } from '../systems/AudioSystem';
 import { CombatSystem } from '../systems/CombatSystem';
 import { PickupSystem } from '../systems/PickupSystem';
+import { ProgressionSystem } from '../systems/ProgressionSystem';
 import { SpawnSystem } from '../systems/SpawnSystem';
 import type { System } from '../systems/System';
+import { VfxSystem } from '../systems/VfxSystem';
+
+/** Phaser names per-key events by suffix. Declared once so a typo is a compile error. */
+const PAUSE_KEY = 'keydown-ESC';
 
 // The wiring hub. It builds the world, hands the pieces to the systems, and tears
 // everything down again. No game rule is decided in this file.
@@ -60,6 +66,37 @@ export class GameScene extends Phaser.Scene {
   };
 
   /**
+   * Freezes the run and layers the offer menu over it.
+   *
+   * `pause` rather than `sleep`: a paused scene stops updating but keeps rendering, so the
+   * frozen arena stays visible under the cards. `UpgradeScene` resumes this one, because a
+   * paused scene cannot act on the event that would tell it to wake up.
+   */
+  private readonly handleLevelUp = (
+    level: number,
+    offerA: string,
+    offerB: string,
+    offerC: string,
+  ): void => {
+    this.scene.pause();
+    this.scene.launch(SceneKey.UPGRADE, { level, offers: [offerA, offerB, offerC] });
+  };
+
+  /**
+   * Guarded, because this scene's keyboard listener still receives events while the scene
+   * is paused — pausing halts `update`, not input. Without the guard, Escape during the
+   * upgrade menu would stack a second frozen layer over the first.
+   */
+  private readonly handlePauseRequested = (): void => {
+    if (this.scene.isPaused() || this.scene.isActive(SceneKey.UPGRADE)) {
+      return;
+    }
+
+    this.scene.pause();
+    this.scene.launch(SceneKey.PAUSE);
+  };
+
+  /**
    * Registered against SHUTDOWN. Destroys the systems, empties the pools and clears the
    * bus, so a second restart behaves exactly like the first.
    */
@@ -80,7 +117,13 @@ export class GameScene extends Phaser.Scene {
     this.projectiles.releaseAll();
     this.gems.releaseAll();
 
+    this.input.keyboard?.off(PAUSE_KEY, this.handlePauseRequested);
+
     this.scene.stop(SceneKey.HUD);
+    // A run can end while a layered scene is open. Stopping them unconditionally is cheaper
+    // than asking whether either is running, and leaving one up would survive the restart.
+    this.scene.stop(SceneKey.UPGRADE);
+    this.scene.stop(SceneKey.PAUSE);
   };
 
   public constructor() {
@@ -147,6 +190,12 @@ export class GameScene extends Phaser.Scene {
       new SpawnSystem(getWaveData(this.registry, enemyData), enemyData, this.enemies, eventBus),
       this.combat,
       this.pickups,
+      new ProgressionSystem(this.player.stats, getUpgradeData(this.registry), eventBus),
+      // Presentation, and last on purpose: they only ever react to what the systems above
+      // have already decided. Deleting these two lines leaves a playable, silent, unadorned
+      // game with identical timing — which is the test invariant 11 exists to pass.
+      new AudioSystem(this, eventBus),
+      new VfxSystem(this, eventBus),
     );
 
     this.physics.add.overlap(projectileGroup, enemyGroup, this.handleProjectileHitEnemy);
@@ -154,6 +203,9 @@ export class GameScene extends Phaser.Scene {
     this.physics.add.overlap(this.player, gemGroup, this.handlePlayerTouchedGem);
 
     eventBus.on('run:ended', this.handleRunEnded);
+    eventBus.on('level:up', this.handleLevelUp);
+
+    this.input.keyboard?.on(PAUSE_KEY, this.handlePauseRequested);
 
     this.scene.launch(SceneKey.HUD);
 
@@ -167,6 +219,19 @@ export class GameScene extends Phaser.Scene {
    */
   public override update(_time: number, delta: number): void {
     const dt = Math.min(delta / 1000, BALANCE.time.maxDeltaSeconds);
+
+    // Hit-stop. `CombatSystem` owns the clock because it owns the death that started it;
+    // the scene only asks whether this frame happens, and stops the physics world to match.
+    // Skipping the systems alone would not be a freeze — Phaser steps the world after this
+    // method returns, so every body would keep drifting through the pause.
+    if (this.combat.tickHitStop(dt)) {
+      this.physics.world.pause();
+      return;
+    }
+
+    if (this.physics.world.isPaused) {
+      this.physics.world.resume();
+    }
 
     this.player.update(dt);
     for (const system of this.systems) {

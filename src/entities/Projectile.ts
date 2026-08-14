@@ -1,7 +1,7 @@
 import * as Phaser from 'phaser';
 import { BALANCE } from '../constants/balance';
 import { Depth } from '../constants/depths';
-import { TextureKey } from '../constants/keys';
+import { StaticTextureKey } from '../constants/keys';
 
 // A bullet. Carries no damage value of its own — Stage 1 has exactly one weapon, so
 // CombatSystem reads the damage off that weapon at the moment of impact. Giving the
@@ -12,7 +12,7 @@ export class Projectile extends Phaser.Physics.Arcade.Sprite {
   private lifetimeRemaining = 0;
 
   public constructor(scene: Phaser.Scene) {
-    super(scene, 0, 0, TextureKey.PROJECTILE);
+    super(scene, 0, 0, StaticTextureKey.PROJECTILE);
 
     scene.add.existing(this);
     scene.physics.add.existing(this);

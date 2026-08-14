@@ -43,14 +43,14 @@ If any of these fail, stop and report. Do not begin Stage 2 on a broken baseline
 
 ## 1. Status ledger — what exists, what does not
 
-**Pass A landed 2026-08-14. Passes B–E are not implemented.** Verify what is still missing in
-one command:
+**Stage 2 is complete as of 2026-08-14 — all five passes.** Verify in one command:
 
 ```bash
-grep -rniE "upgrade|audiosystem|vfxsystem|statblock|savestore|xpcurve|animator|particle|shake|knockback|localstorage" src/
+grep -rlniE "upgrade|audiosystem|vfxsystem|statblock|savestore|xpcurve|animator|particle|shake|knockback|localstorage" src/
 ```
 
-Zero hits today. `swarmer`, `brute` and `enemies.json` now hit, which is Pass A.
+Every term now hits. `typecheck` ✅ · `lint` ✅ 0 warnings · `test` ✅ 127 passed across 9
+files · `build` ✅ 0 warnings · console ✅ empty.
 
 ### 1a. Foundations already in place — build on these, do not rebuild them
 
@@ -69,37 +69,37 @@ than it sounds.
 | ✅ | `Health` is a dependency-free value object | `components/Health.ts` | Deliberately unchanged in Stage 2. See §5 |
 | ✅ | Restart safety verified by listener census | `GameScene.shutdown` | New systems must extend the census, not invent a pattern |
 
-### 1b. Stage 2 deliverables — every one of these is **not started**
+### 1b. Stage 2 deliverables — **all delivered**
 
 Tick a row in this table **in the same commit** as the code that lands it.
 
-| Status | Deliverable | Pass | Evidence it is not done |
+| Status | Deliverable | Pass | Evidence |
 |---|---|---|---|
 | ✅ | `enemies.json` + `EnemyDefinition` + its zod schema | A | Landed 2026-08-14 |
 | ✅ | `enemyIdSchema` widened from a literal to a union validated against `enemies.json` | A | Landed 2026-08-14 — the wave schema is now a factory over the parsed ids |
 | ✅ | Per-definition texture, body size and colour | A | Landed 2026-08-14 — `Enemy.spawn` takes a definition; `BALANCE.enemy.size`/`.color` are gone |
 | ✅ | Swarmer (fast, fragile) and brute (slow, tanky) as **definitions** | A | Landed 2026-08-14 |
 | ✅ | **A real difficulty ramp and a real fail state** | A | Landed 2026-08-14 — 10 waves; a stationary player dies in wave 3, measured in-browser |
-| ☐ | Per-frame textures + idle / walk / hit animations | B | No `AnimKey`, no `anims.create` anywhere |
-| ☐ | `Animator` component | B | File does not exist |
-| ☐ | SFX: shoot, hit, enemy death, player damage, pickup, level-up | B | No `AudioSystem`, no audio loaded |
-| ☐ | One looping music track; master / SFX / music volume | B | As above |
-| ☐ | Hit spark, death burst, pickup sparkle | B | No `VfxSystem`, no particle emitters |
-| ☐ | Floating damage numbers | B | No `FloatingText` |
-| ☐ | Screen shake on player damage, damage flash tint | B | No camera effects |
-| ☐ | Knockback on hit | C | `CombatSystem` applies damage only |
-| ☐ | Hit-stop on enemy death | C | Nothing modulates the timestep |
-| ☐ | XP curve and levels | D | XP accumulates via `xp:changed`; there are no levels |
-| ☐ | `StatBlock` + `Stats` (computed, never mutated) | D | Files do not exist |
-| ☐ | `upgrades.json` + pick-1-of-3 offers | D | File does not exist |
-| ☐ | `UpgradeScene` | D | Six scenes exist; this is not one of them |
-| ☐ | Versioned, zod-validated `SaveStore`: high score, best wave, total runs | E | File does not exist; nothing touches `localStorage` |
-| ☐ | `PauseScene` | E | Does not exist |
-| ☐ | `AGENTS.md` carries invariants 11–15 | E | Stops at 10 |
-| ☐ | `ARCHITECTURE.md` updated: stage table, event catalogue, "which file do I touch" | E | Describes Stage 1 |
+| ✅ | Per-frame textures + idle / walk / hit animations | B | Landed 2026-08-14 — five frames per actor, baked at boot |
+| ✅ | `Animator` component | B | Landed 2026-08-14 |
+| ✅ | SFX: shoot, hit, enemy death, player damage, pickup, level-up | B | Landed 2026-08-14 — all six synthesised, no audio files |
+| ✅ | One looping music track; master / SFX / music volume | B | Landed 2026-08-14 |
+| ✅ | Hit spark, death burst, pickup sparkle | B | Landed 2026-08-14 — three emitters, built once |
+| ✅ | Floating damage numbers | B | Landed 2026-08-14 — pooled |
+| ✅ | Screen shake on player damage, damage flash tint | B | Landed 2026-08-14 |
+| ✅ | Knockback on hit | C | Landed 2026-08-14 |
+| ✅ | Hit-stop on enemy death | C | Landed 2026-08-14 |
+| ✅ | XP curve and levels | D | Landed 2026-08-14 |
+| ✅ | `StatBlock` + `Stats` (computed, never mutated) | D | Landed 2026-08-14 |
+| ✅ | `upgrades.json` + pick-1-of-3 offers | D | Landed 2026-08-14 — six upgrades |
+| ✅ | `UpgradeScene` | D | Landed 2026-08-14 — over a paused GameScene |
+| ✅ | Versioned, zod-validated `SaveStore`: high score, best wave, total runs | E | Landed 2026-08-14 — v1→v2 migration included |
+| ✅ | `PauseScene` | E | Landed 2026-08-14 |
+| ✅ | `AGENTS.md` carries invariants 11–15 | E | Landed 2026-08-14 |
+| ✅ | `ARCHITECTURE.md` updated: stage table, event catalogue, "which file do I touch" | E | Landed 2026-08-14 |
 
-**Partial credit is not a status.** A row is ☐ until its code is merged and all four checks
-pass.
+**Partial credit is not a status.** A row was ☐ until its code was merged and all four checks
+passed.
 
 ---
 
@@ -419,16 +419,26 @@ in Stage 3.
    bare Node test. This is not a style rule in Stage 3 — the entire stage is built on it.
 
 3. **Every gameplay rule lives in `src/systems/` or `src/components/`, and systems import
-   entities with `import type` only.** Today `CombatSystem`, `PickupSystem` and `SpawnSystem`
-   have **zero runtime Phaser imports**; their only entity coupling is erased at compile time.
-   Stage 3 moves those files wholesale. Confirm before finishing:
+   entities with `import type` only.** `CombatSystem`, `PickupSystem`, `SpawnSystem` and
+   `ProgressionSystem` have **zero runtime Phaser imports**; their only entity coupling is
+   erased at compile time. Stage 3 moves those files wholesale.
 
-   ```bash
-   grep -rn "from 'phaser'" src/systems/     # must stay empty
-   ```
-
-   A single runtime `phaser` import added to a system during Stage 2 turns a file move into a
-   rewrite.
+   > **Correction, 2026-08-14.** The check written here was
+   > `grep -rn "from 'phaser'" src/systems/     # must stay empty`, and it cannot stay empty:
+   > invariant 11 requires `AudioSystem` and `VfxSystem` to be *the only* code touching
+   > presentation APIs, and this brief puts both in `src/systems/`. Touching the sound
+   > manager, the camera and the particle system means importing Phaser. The two rules were
+   > in direct conflict, and the presentation systems are the ones that must win, because
+   > nothing else may hold that dependency.
+   >
+   > The check that carries the original intent is the gameplay systems only:
+   >
+   > ```bash
+   > grep -rn "from 'phaser'" src/systems/ | grep -v "AudioSystem\|VfxSystem"   # must stay empty
+   > ```
+   >
+   > Stage 3 moves the four gameplay systems and leaves the two presentation systems where
+   > they are — they are view code by definition, and the sim/view split is the whole point.
 
 4. **Presentation only ever subscribes.** Invariant 11 is not decoration — Stage 3's sim/view
    split is that invariant taken to its conclusion. If gameplay code calls `camera.shake()`
@@ -453,6 +463,27 @@ in Stage 3.
    mechanical instead of archaeological.
 
 If all seven hold, Stage 3 can begin at Pass A on the day Stage 2 lands.
+
+**Re-checked 2026-08-14, when Stage 2 landed. All seven hold**, with one correction recorded
+in item 3 above:
+
+1. ✅ `enemies.json`, `upgrades.json` and their zod schemas are the only source of enemy and
+   upgrade content.
+2. ✅ `src/core/` has zero Phaser imports and zero DOM references. `SaveStore`, `StatBlock`,
+   `xpCurve` and `audioSynth` all run in the bare Node test environment — the only mention of
+   `window` in that folder is a comment explaining why the storage adapter is injected.
+3. ✅ …for the four gameplay systems. See the correction: the two presentation systems import
+   Phaser by necessity and stay behind when Stage 3 moves the rest.
+4. ✅ Presentation only ever subscribes. No gameplay file calls `sound.play`, `camera.shake`
+   or `add.particles`; the check is a grep over `entities/`, `components/` and the three
+   Stage 1 systems.
+5. ✅ Six `Math.random` call sites, all inside systems: five in `SpawnSystem.spawn` and one in
+   `ProgressionSystem.pickOffers`. The particle jitter that would have been a seventh is
+   Phaser's own, inside emitter configs, and is exempt — it decides no gameplay outcome.
+6. ✅ No `Date.now` or `performance.now` anywhere in `src/`. `SaveStore` chose not to stamp a
+   timestamp at all, so even the permitted use does not exist.
+7. ✅ Pool sizes are fixed and nothing allocates in an update path. `FloatingText` joined the
+   pooled types; `ProgressionSystem` allocates only on a level-up, which is not a frame path.
 
 ---
 

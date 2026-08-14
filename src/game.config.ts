@@ -5,7 +5,9 @@ import { GameOverScene } from './scenes/GameOverScene';
 import { GameScene } from './scenes/GameScene';
 import { HUDScene } from './scenes/HUDScene';
 import { MenuScene } from './scenes/MenuScene';
+import { PauseScene } from './scenes/PauseScene';
 import { PreloadScene } from './scenes/PreloadScene';
+import { UpgradeScene } from './scenes/UpgradeScene';
 
 // Scene registration order is the boot order: the first entry starts automatically and
 // every other scene waits to be started by name.
@@ -28,5 +30,14 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
       debug: BALANCE.debug.physicsBodies,
     },
   },
-  scene: [BootScene, PreloadScene, MenuScene, GameScene, HUDScene, GameOverScene],
+  scene: [
+    BootScene,
+    PreloadScene,
+    MenuScene,
+    GameScene,
+    HUDScene,
+    GameOverScene,
+    UpgradeScene,
+    PauseScene,
+  ],
 };

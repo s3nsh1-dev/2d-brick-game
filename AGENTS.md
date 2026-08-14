@@ -9,15 +9,14 @@ Instructions for any coding agent working in this repository. Tool-agnostic and 
 | Stage | Scope | Status |
 |---|---|---|
 | 1 | Playable core: movement, auto-fire, one enemy, waves, XP, HP, game over | **complete** |
-| 2 | Feel and content: sprites, audio, particles, game feel, enemy variety, progression, save | **in progress** — Pass A (enemy definitions, difficulty curve) done; B–E to go. Brief in `docs/STAGE_2_INSTRUCTIONS.md` |
+| 2 | Feel and content: sprites, audio, particles, game feel, enemy variety, progression, save | **complete** — all five passes. Brief and ledger in `docs/STAGE_2_INSTRUCTIONS.md` |
 | 3 | Systems: the simulation stops depending on Phaser — engine-free rules, determinism, replay | not started — brief in `docs/STAGE_3_instructions.md` |
 
 The current stage is recorded at the top of `ARCHITECTURE.md`. Read it before planning any change.
 
-As of 2026-08-14 Stage 2 is one pass in. `enemies.json`, `EnemyDefinition` and the ten-wave
-curve exist; `src/` still contains no `Animator`, `AudioSystem`, `VfxSystem`, `StatBlock`,
-`SaveStore` or `upgrades.json`. Read the ledger in `docs/STAGE_2_INSTRUCTIONS.md` §1b rather
-than inferring progress from the branch name.
+Stage 2 completed 2026-08-14. Stage 3 has not started; its brief is
+`docs/STAGE_3_instructions.md`, and the readiness gate it depends on is §9 of the Stage 2
+brief — every item was re-checked when Stage 2 landed.
 
 ## Stack
 
@@ -81,6 +80,16 @@ Non-negotiable. If a task appears to require breaking one, stop and raise it rat
 8. **`dt` is seconds.** Phaser hands you milliseconds; convert once in `GameScene.update()`. Every downstream signature is `update(dt: number)` in seconds.
 9. **Scenes clean up.** Every scene registers a `Phaser.Scenes.Events.SHUTDOWN` handler that destroys its systems, clears event listeners, and releases pools. Two consecutive restarts must behave identically to one.
 10. **No `any`, no `@ts-ignore`, no non-null assertion outside constructors.** `!` on a field assigned in `create()` is acceptable and idiomatic; anywhere else it needs a comment justifying it.
+
+11. **Presentation is event-driven and one-directional.** No gameplay code calls `sound.play()`, `camera.shake()`, or spawns a particle. Gameplay emits a typed event; `AudioSystem` and `VfxSystem` are the only subscribers that touch presentation APIs. Deleting both must leave the game fully playable, silent and unadorned. (An entity animating *itself* — `Enemy.takeDamage` playing its own hit frame — is entity state, not a presentation service, and stays.)
+
+12. **Emitters and sounds are created once, at system init.** Never per-hit, never per-frame. `VfxSystem` holds a fixed set of pre-configured emitters and re-triggers them at a position with `explode(count, x, y)`. Same for every `Phaser.Sound` instance.
+
+13. **Identical SFX inside a short window are coalesced.** Killing forty enemies in one frame plays one death sound, not forty. The throttle window is `BALANCE.audio.throttleSeconds`. Hit-stop coalesces the same way, with `max` rather than a sum.
+
+14. **Stats are computed, never mutated.** `StatBlock` keeps an immutable base plus a list of modifiers and recomputes on read. An upgrade appends a modifier; removing it restores the exact original value, with no accumulated float drift. Consumers read through `Stats.get` every frame rather than caching — a cached copy is stale the moment a level-up lands.
+
+15. **Save data carries a schema version.** `SaveStore` validates with zod on read; on version mismatch it migrates if it can and discards if it cannot. Corrupt or foreign `localStorage` must never crash the boot sequence. It takes a storage adapter as a constructor argument, so it tests without a browser — `core/` may not name `window` any more than it may name Phaser.
 
 ## Code style
 

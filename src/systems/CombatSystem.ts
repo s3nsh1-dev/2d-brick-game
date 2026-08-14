@@ -1,4 +1,5 @@
 import { BALANCE } from '../constants/balance';
+import { StatId } from '../constants/stats';
 import type { EventBus, GameEvents } from '../core/EventBus';
 import { nearest, scratchA, setLength } from '../core/math';
 import type { ObjectPool } from '../core/ObjectPool';
@@ -23,6 +24,7 @@ export class CombatSystem implements System {
   private currentWave = 1;
   private currentXp = 0;
   private runEnded = false;
+  private hitStopRemaining = 0;
 
   private readonly handleWaveStarted = (waveNumber: number): void => {
     this.currentWave = waveNumber;
@@ -61,10 +63,21 @@ export class CombatSystem implements System {
     }
 
     this.projectiles.release(projectile);
-    enemy.health.damage(this.player.weapon.damage);
+
+    const damage = this.player.stats.get(StatId.WEAPON_DAMAGE);
+    enemy.takeDamage(damage);
+    this.bus.emit('enemy:damaged', enemy.x, enemy.y, damage);
+
     if (!enemy.health.isDead) {
+      // Away from the player, because that is where the shot came from. Read off positions
+      // rather than the projectile's velocity: it has already gone back to its pool.
+      const direction = setLength(scratchA, enemy.x - this.player.x, enemy.y - this.player.y, 1);
+      enemy.applyKnockback(direction.x, direction.y);
       return;
     }
+
+    // Coalesced with `max`, not summed: forty enemies dying in one frame is one freeze.
+    this.hitStopRemaining = Math.max(this.hitStopRemaining, BALANCE.combat.hitStopSeconds);
 
     const deathX = enemy.x;
     const deathY = enemy.y;
@@ -81,8 +94,14 @@ export class CombatSystem implements System {
     enemy.consumeContactDamage();
 
     const health = this.player.health;
-    health.damage(BALANCE.enemy.contactDamage);
+    this.player.takeDamage(BALANCE.enemy.contactDamage);
     this.bus.emit('player:health-changed', health.current, health.max);
+    this.bus.emit(
+      'player:damaged',
+      this.player.x,
+      this.player.y,
+      BALANCE.enemy.contactDamage,
+    );
 
     if (health.isDead) {
       this.runEnded = true;
@@ -95,9 +114,33 @@ export class CombatSystem implements System {
     this.bus.off('xp:changed', this.handleXpChanged);
   }
 
+  /**
+   * Spends this frame's share of any hit-stop, and reports whether the world is still
+   * frozen. `GameScene` asks once per frame and skips the simulation while it is true.
+   *
+   * The clock lives here because the death that started it does. It is deliberately not a
+   * `System.update` step: by the time the systems run, the scene has already had to decide
+   * whether this frame happens at all.
+   */
+  public tickHitStop(dt: number): boolean {
+    if (this.hitStopRemaining <= 0) {
+      return false;
+    }
+
+    this.hitStopRemaining -= dt;
+    return true;
+  }
+
   private steerEnemies(dt: number): void {
     for (const enemy of this.enemies.active) {
       enemy.tickContactCooldown(dt);
+      enemy.tickKnockback(dt);
+
+      // Its velocity is the knockback until that expires. Steering it now would cancel the
+      // hit on the same frame it landed.
+      if (enemy.isKnockedBack) {
+        continue;
+      }
 
       const direction = setLength(
         scratchA,
@@ -115,7 +158,13 @@ export class CombatSystem implements System {
       return;
     }
 
-    const target = nearest(this.player.x, this.player.y, this.enemies.active, weapon.range);
+    const stats = this.player.stats;
+    const target = nearest(
+      this.player.x,
+      this.player.y,
+      this.enemies.active,
+      stats.get(StatId.WEAPON_RANGE),
+    );
     if (target === undefined) {
       return;
     }
@@ -128,10 +177,11 @@ export class CombatSystem implements System {
     // Readiness was checked above, so this always succeeds; calling it is what spends the
     // cooldown. Spending it only once a projectile is in hand keeps an exhausted pool from
     // silently eating shots.
-    weapon.tryFire();
+    weapon.tryFire(stats.get(StatId.WEAPON_COOLDOWN));
 
     const direction = setLength(scratchA, target.x - this.player.x, target.y - this.player.y, 1);
     projectile.fire(this.player.x, this.player.y, direction.x, direction.y);
+    this.bus.emit('weapon:fired', this.player.x, this.player.y);
   }
 
   private ageProjectiles(dt: number): void {
