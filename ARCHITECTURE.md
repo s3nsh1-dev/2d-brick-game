@@ -2,7 +2,8 @@
 
 ## Current stage
 
-**Stage 1 — in progress.** Pass 1 (skeleton) complete; Pass 2 (implementation) not started.
+**Stage 1 — complete.** Both passes done. `typecheck`, `lint`, `test` (50 specs) and `build`
+pass clean, and the game runs with an empty browser console.
 
 Stage 1 is: player movement, auto-aim weapon firing pooled projectiles, one enemy type with
 chase AI, wave-based spawning driven by JSON, collision damage in both directions, XP gems,
@@ -50,16 +51,29 @@ does not care whether it boots before or after the first frame.
 
 ### Shutdown
 
-Every scene registers a `Phaser.Scenes.Events.SHUTDOWN` handler. `GameScene`'s handler:
+Every scene registers a `Phaser.Scenes.Events.SHUTDOWN` handler. `GameScene`'s handler runs
+in this order, and the order is load-bearing:
 
 1. calls `destroy()` on each system, which unsubscribes it from the bus;
-2. calls `releaseAll()` on each pool;
-3. calls `eventBus.clear()`;
-4. stops `HUDScene`.
+2. calls `eventBus.clear()`;
+3. empties the system array;
+4. calls `releaseAll()` on each pool;
+5. stops `HUDScene`.
 
-This is what makes the second restart behave identically to the first. A listener that
-survives a shutdown fires twice on the next run, and that class of bug is invisible until
-someone restarts twice.
+Listener hygiene comes first because anything that throws later in the handler would skip
+it, and a bus listener surviving a restart is the exact bug this ordering prevents. It is
+not hypothetical: step 4 threw during development and took steps 2 and 5 with it.
+
+**Phaser tears its own plugins down before this handler runs.** By the time `SHUTDOWN`
+fires, the Arcade Physics plugin has already released every body, so `sprite.body` is
+`undefined` and `disableBody()` would dereference it. Each entity's `despawn()` therefore
+guards on `this.body` before touching it. Phaser's types have always declared `body`
+nullable; the guard is honouring that, not defending against a phantom.
+
+The invariant is verified by measurement rather than by eye. Driving `run:ended` through the
+real path and reading `eventBus.listenerCount` across two consecutive restarts gives an
+identical census each run — `player:health-changed` 1, `wave:started` 2, `xp:changed` 2,
+`enemy:died` 1, `run:ended` 1 — and zero between runs.
 
 ## The system contract
 
