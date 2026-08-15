@@ -46,6 +46,12 @@ const PALETTE = {
   danger: 0xff4d4d,
   /** A warning that is not yet damage: the spawn telegraph. */
   warning: 0xffc857,
+  /**
+   * The health pickup. Paler and brighter than the player's own mint so the two never read
+   * as the same object, though the cross shape is what actually distinguishes it — every
+   * other thing in this game is a square.
+   */
+  health: 0x9dffc6,
 
   /** Particles are baked white and tinted, so this is the one texture colour. */
   spark: 0xffffff,
@@ -148,6 +154,32 @@ export const BALANCE = {
     ringMargin: 48,
   },
 
+  // The one thing in the arena that helps rather than hurts. One per wave, from the wave
+  // below, and it leaves if it is not taken — a lifeline you have to go and get is a
+  // decision; one that waits forever is just delayed healing.
+  healthPickup: {
+    /** The first wave that produces one. Waves 1-5 give none. */
+    firstWave: 6,
+    /** How long after a wave starts it appears. Fixed, so the player learns the rhythm. */
+    spawnDelaySeconds: 6,
+    /** How long it waits before giving up. */
+    lifetimeSeconds: 10,
+    /** It blinks for this long at the end, so leaving is something you can see coming. */
+    blinkSeconds: 3.5,
+    blinkPerSecond: 5,
+    healAmount: 25,
+    size: 22,
+    /** Arm thickness of the cross, as a fraction of `size`. */
+    armRatio: 0.34,
+    color: PALETTE.health,
+    /** Keeps it off the wall, where it would be half hidden by the vignette. */
+    edgeMargin: 96,
+    /** Never close enough to be collected by standing still. */
+    minPlayerDistance: 190,
+    /** Two is already one more than can exist at once; the third is for a restart. */
+    poolSize: 4,
+  },
+
   progression: {
     // Gems are worth 1 apiece, so these are enemy counts: level 2 costs 5 kills, level 3
     // costs 8, and so on. Arithmetic rather than exponential — see core/xpCurve.ts.
@@ -234,6 +266,18 @@ export const BALANCE = {
         attackSeconds: 0.002,
         decay: 14,
         gain: 0.4,
+        noiseMix: 0,
+      },
+      // Warm, rising and soft-edged. The gem blip is short and bright; this one has to read
+      // as relief rather than as another gem, so it is slower and starts lower.
+      heal: {
+        durationSeconds: 0.34,
+        startFrequency: 330,
+        endFrequency: 660,
+        waveform: 'triangle',
+        attackSeconds: 0.012,
+        decay: 6,
+        gain: 0.55,
         noiseMix: 0,
       },
       // Longer and rising further than the pickup blip it has to be distinguishable from:
@@ -329,6 +373,17 @@ export const BALANCE = {
       scaleStart: 0.9,
       scaleEnd: 0,
       color: PALETTE.gem,
+    },
+    // Bigger and slower than the gem sparkle. Taking a health pickup is a rarer and more
+    // important moment than taking the hundredth gem, and should not look like one.
+    healBurst: {
+      count: 14,
+      speedMin: 50,
+      speedMax: 170,
+      lifespanMs: 520,
+      scaleStart: 1.5,
+      scaleEnd: 0,
+      color: PALETTE.health,
     },
 
     shake: {

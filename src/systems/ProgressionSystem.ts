@@ -37,13 +37,17 @@ export class ProgressionSystem implements System {
 
     const offers = this.pickOffers();
     const [first, second, third] = offers;
-    if (first === undefined || second === undefined || third === undefined) {
-      // Fewer eligible upgrades than the scene can show. Everything is capped out, so the
-      // run simply continues rather than opening an empty menu.
+    if (first === undefined) {
+      // Everything is capped out. The level still counts — the HUD reads it from the XP
+      // total — but there is nothing left to offer, so the run simply continues.
       return;
     }
 
-    this.bus.emit('level:up', this.level, first.id, second.id, third.id);
+    // Fewer than three when fewer than three remain uncapped, rather than nothing at all.
+    // Stage 2 skipped the whole level-up in that case, which is what made a long run stop
+    // producing upgrade screens entirely. `UpgradeScene` already drops ids it cannot resolve
+    // and lays out however many cards it ends up with, so an empty id is the natural gap.
+    this.bus.emit('level:up', this.level, first.id, second?.id ?? '', third?.id ?? '');
   };
 
   private readonly handleUpgradeChosen = (upgradeId: string): void => {

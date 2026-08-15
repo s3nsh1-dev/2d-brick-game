@@ -66,6 +66,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.animator.playOnce(AnimState.HIT);
   }
 
+  /** Restores health. The cap is `Health`'s; overhealing is silently clamped, not banked. */
+  public heal(amount: number): void {
+    this.health.heal(amount);
+  }
+
   public override destroy(fromScene?: boolean): void {
     this.controls.destroy();
     super.destroy(fromScene);

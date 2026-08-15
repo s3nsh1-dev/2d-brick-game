@@ -28,6 +28,8 @@ export const StaticTextureKey = {
   SPARK: 'spark',
   /** The bar that marks where an enemy is about to enter. */
   SPAWN_MARKER: 'spawnMarker',
+  /** The cross the health pickup is drawn as — the one non-square in the game. */
+  HEALTH_PICKUP: 'healthPickup',
   /**
    * The whole arena — floor, grid, lit edge and vignette — composited once at boot.
    *
@@ -56,6 +58,7 @@ export const SoundKey = {
   ENEMY_DEATH: 'sfx.enemyDeath',
   PLAYER_DAMAGE: 'sfx.playerDamage',
   PICKUP: 'sfx.pickup',
+  HEAL: 'sfx.heal',
   LEVEL_UP: 'sfx.levelUp',
   MUSIC: 'music.loop',
 } as const;

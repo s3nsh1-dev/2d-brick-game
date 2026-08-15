@@ -5,6 +5,14 @@ export const Depth = {
   GEM: 10,
   PROJECTILE: 20,
   ENEMY: 30,
+  /**
+   * Above the crowd, below the player.
+   *
+   * It is an object on the floor and by rights belongs under the things walking over it, but
+   * at two hundred enemies a floor-level pickup is invisible exactly when it is most needed.
+   * Readability wins; there is only ever one of these on screen.
+   */
+  HEALTH_PICKUP: 35,
   PLAYER: 40,
   // Above every entity so an effect is never hidden by the thing that caused it, and below
   // the HUD so it never obscures a number the player needs.

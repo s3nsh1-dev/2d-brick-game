@@ -25,6 +25,7 @@ export class VfxSystem implements System {
   private readonly hitSpark: Phaser.GameObjects.Particles.ParticleEmitter;
   private readonly deathBurst: Phaser.GameObjects.Particles.ParticleEmitter;
   private readonly pickupSparkle: Phaser.GameObjects.Particles.ParticleEmitter;
+  private readonly healBurst: Phaser.GameObjects.Particles.ParticleEmitter;
 
   private readonly texts: ObjectPool<FloatingText>;
   private readonly markers: ObjectPool<SpawnMarker>;
@@ -103,6 +104,12 @@ export class VfxSystem implements System {
     this.pickupSparkle.explode(BALANCE.vfx.pickupSparkle.count, x, y);
   };
 
+  // Exempt from the per-frame burst budget: there is at most one of these a wave, and it is
+  // the only good news the arena ever produces.
+  private readonly handleHealthTaken = (x: number, y: number): void => {
+    this.healBurst.explode(BALANCE.vfx.healBurst.count, x, y);
+  };
+
   private readonly handlePlayerDamaged = (x: number, y: number, amount: number): void => {
     const { shake, flash } = BALANCE.vfx;
     const camera = this.scene.cameras.main;
@@ -123,6 +130,7 @@ export class VfxSystem implements System {
     this.hitSpark = this.createEmitter(BALANCE.vfx.hitSpark);
     this.deathBurst = this.createEmitter(BALANCE.vfx.deathBurst);
     this.pickupSparkle = this.createEmitter(BALANCE.vfx.pickupSparkle);
+    this.healBurst = this.createEmitter(BALANCE.vfx.healBurst);
 
     this.flashColor = Phaser.Display.Color.IntegerToRGB(BALANCE.vfx.flash.color);
 
@@ -146,6 +154,7 @@ export class VfxSystem implements System {
     this.bus.on('enemy:damaged', this.handleEnemyDamaged);
     this.bus.on('enemy:died', this.handleEnemyDied);
     this.bus.on('gem:collected', this.handleGemCollected);
+    this.bus.on('pickup:health', this.handleHealthTaken);
     this.bus.on('player:damaged', this.handlePlayerDamaged);
   }
 
@@ -189,6 +198,7 @@ export class VfxSystem implements System {
     this.bus.off('enemy:damaged', this.handleEnemyDamaged);
     this.bus.off('enemy:died', this.handleEnemyDied);
     this.bus.off('gem:collected', this.handleGemCollected);
+    this.bus.off('pickup:health', this.handleHealthTaken);
     this.bus.off('player:damaged', this.handlePlayerDamaged);
 
     this.texts.releaseAll();

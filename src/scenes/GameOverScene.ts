@@ -17,6 +17,8 @@ export interface GameOverData {
   readonly xpTotal: number;
   /** Every upgrade the run took, in the order taken. Collected by `GameScene`. */
   readonly upgrades: readonly string[];
+  /** True when the player cleared the final wave rather than being cleared by it. */
+  readonly victory: boolean;
 }
 
 // End of run. Receives the run's own numbers through scene data rather than the bus, because
@@ -36,6 +38,7 @@ export class GameOverScene extends Phaser.Scene {
   private waveReached = 0;
   private xpTotal = 0;
   private upgrades: readonly string[] = [];
+  private victory = false;
 
   private records: SaveData = EMPTY_SAVE;
   private previous: SaveData = EMPTY_SAVE;
@@ -52,6 +55,7 @@ export class GameOverScene extends Phaser.Scene {
     this.waveReached = data.waveReached;
     this.xpTotal = data.xpTotal;
     this.upgrades = data.upgrades;
+    this.victory = data.victory;
 
     // Read before writing: `recordRun` returns the *merged* record, which cannot answer
     // "did this run beat the last one?" — the only question worth putting on this screen.
@@ -65,7 +69,22 @@ export class GameOverScene extends Phaser.Scene {
     addArenaBackdrop(this);
     new Panel(this, width / 2, height / 2 + 6, 620, 428);
 
-    new Label(this, width / 2, height / 2 - 172, 'RUN OVER', LabelVariant.TITLE).setOrigin(0.5);
+    // The two endings should not share a screen that only differs in one word. Clearing the
+    // arena is the whole point of the game, and it says so.
+    new Label(
+      this,
+      width / 2,
+      height / 2 - 172,
+      this.victory ? 'ARENA CLEARED' : 'RUN OVER',
+      LabelVariant.TITLE,
+    )
+      .setOrigin(0.5)
+      .setVariantColor(this.victory ? BALANCE.palette.uiAccent : BALANCE.palette.uiText);
+
+    if (this.victory) {
+      new Label(this, width / 2, height / 2 - 136, 'every wave survived', LabelVariant.DIM)
+        .setOrigin(0.5);
+    }
 
     this.showRun();
     this.showPersonalBest();
@@ -145,8 +164,13 @@ export class GameOverScene extends Phaser.Scene {
     list.setFromIds(this.upgrades, getUpgradeData(this.registry));
 
     if (list.isEmpty) {
-      new Label(this, width / 2, height / 2 + 44, 'nothing — the run ended early', LabelVariant.SMALL)
-        .setOrigin(0.5);
+      new Label(
+        this,
+        width / 2,
+        height / 2 + 44,
+        this.victory ? 'nothing — cleared it bare-handed' : 'nothing — the run ended early',
+        LabelVariant.SMALL,
+      ).setOrigin(0.5);
     }
   }
 }

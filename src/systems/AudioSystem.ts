@@ -34,6 +34,7 @@ const SFX_KEYS = [
   SoundKey.ENEMY_DEATH,
   SoundKey.PLAYER_DAMAGE,
   SoundKey.PICKUP,
+  SoundKey.HEAL,
   SoundKey.LEVEL_UP,
 ] as const;
 
@@ -67,6 +68,10 @@ export class AudioSystem implements System {
 
   private readonly handleGemCollected = (): void => {
     this.play(SoundKey.PICKUP);
+  };
+
+  private readonly handleHealthTaken = (): void => {
+    this.play(SoundKey.HEAL);
   };
 
   private readonly handleLevelUp = (): void => {
@@ -113,6 +118,7 @@ export class AudioSystem implements System {
     this.bus.on('enemy:died', this.handleEnemyDied);
     this.bus.on('player:damaged', this.handlePlayerDamaged);
     this.bus.on('gem:collected', this.handleGemCollected);
+    this.bus.on('pickup:health', this.handleHealthTaken);
     this.bus.on('level:up', this.handleLevelUp);
   }
 
@@ -130,6 +136,7 @@ export class AudioSystem implements System {
     this.bus.off('enemy:died', this.handleEnemyDied);
     this.bus.off('player:damaged', this.handlePlayerDamaged);
     this.bus.off('gem:collected', this.handleGemCollected);
+    this.bus.off('pickup:health', this.handleHealthTaken);
     this.bus.off('level:up', this.handleLevelUp);
 
     // The SoundManager is global and outlives this scene, so a listener left on it and a
@@ -166,6 +173,7 @@ export class AudioSystem implements System {
       { key: SoundKey.ENEMY_DEATH, data: renderSfx(sfx.enemyDeath, sampleRate, peak, 3) },
       { key: SoundKey.PLAYER_DAMAGE, data: renderSfx(sfx.playerDamage, sampleRate, peak, 4) },
       { key: SoundKey.PICKUP, data: renderSfx(sfx.pickup, sampleRate, peak, 5) },
+      { key: SoundKey.HEAL, data: renderSfx(sfx.heal, sampleRate, peak, 9) },
       { key: SoundKey.LEVEL_UP, data: renderSfx(sfx.levelUp, sampleRate, peak, 8) },
       {
         key: SoundKey.MUSIC,

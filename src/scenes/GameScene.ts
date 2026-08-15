@@ -5,6 +5,7 @@ import { eventBus } from '../core/EventBus';
 import { ObjectPool } from '../core/ObjectPool';
 import { getEnemyData, getUpgradeData, getWaveData } from '../data/schema';
 import { Enemy } from '../entities/Enemy';
+import { HealthPickup } from '../entities/HealthPickup';
 import { Player } from '../entities/Player';
 import { Projectile } from '../entities/Projectile';
 import { XpGem } from '../entities/XpGem';
@@ -34,6 +35,7 @@ export class GameScene extends Phaser.Scene {
   private enemies!: ObjectPool<Enemy>;
   private projectiles!: ObjectPool<Projectile>;
   private gems!: ObjectPool<XpGem>;
+  private healthPickups!: ObjectPool<HealthPickup>;
   private combat!: CombatSystem;
   private pickups!: PickupSystem;
 
@@ -62,6 +64,15 @@ export class GameScene extends Phaser.Scene {
     }
   };
 
+  private readonly handlePlayerTouchedHealth: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback = (
+    _first,
+    second,
+  ) => {
+    if (second instanceof HealthPickup) {
+      this.pickups.onPlayerTouchedHealth(second);
+    }
+  };
+
   /**
    * The run's picks, in the order taken, for the summary screen to report.
    *
@@ -76,13 +87,17 @@ export class GameScene extends Phaser.Scene {
     this.takenUpgrades.push(upgradeId);
   };
 
-  private readonly handleRunEnded = (waveReached: number, xpTotal: number): void => {
+  private readonly handleRunEnded = (
+    waveReached: number,
+    xpTotal: number,
+    victory: boolean,
+  ): void => {
     // Copied, not passed: `shutdown` empties this array, and it runs before the next scene
     // reads its data.
     const upgrades = [...this.takenUpgrades];
 
     this.scene.stop(SceneKey.HUD);
-    fadeToScene(this, SceneKey.GAME_OVER, { waveReached, xpTotal, upgrades });
+    fadeToScene(this, SceneKey.GAME_OVER, { waveReached, xpTotal, upgrades, victory });
   };
 
   /**
@@ -150,6 +165,7 @@ export class GameScene extends Phaser.Scene {
     this.enemies.releaseAll();
     this.projectiles.releaseAll();
     this.gems.releaseAll();
+    this.healthPickups.releaseAll();
 
     // Emptied for the same reason the system array is: Phaser reuses the scene instance, so
     // last run's picks would otherwise appear on the next run's summary.
@@ -190,6 +206,7 @@ export class GameScene extends Phaser.Scene {
     const enemyGroup = this.physics.add.group();
     const projectileGroup = this.physics.add.group();
     const gemGroup = this.physics.add.group();
+    const healthGroup = this.physics.add.group();
 
     this.enemies = new ObjectPool<Enemy>(
       BALANCE.enemy.poolSize,
@@ -227,8 +244,20 @@ export class GameScene extends Phaser.Scene {
       },
     );
 
+    this.healthPickups = new ObjectPool<HealthPickup>(
+      BALANCE.healthPickup.poolSize,
+      () => {
+        const pickup = new HealthPickup(this);
+        healthGroup.add(pickup);
+        return pickup;
+      },
+      (pickup) => {
+        pickup.despawn();
+      },
+    );
+
     this.combat = new CombatSystem(this.player, this.enemies, this.projectiles, eventBus);
-    this.pickups = new PickupSystem(this.player, this.gems, eventBus);
+    this.pickups = new PickupSystem(this.player, this.gems, this.healthPickups, eventBus);
     this.systems.push(
       new SpawnSystem(getWaveData(this.registry, enemyData), enemyData, this.enemies, eventBus),
       this.combat,
@@ -244,6 +273,7 @@ export class GameScene extends Phaser.Scene {
     this.physics.add.overlap(projectileGroup, enemyGroup, this.handleProjectileHitEnemy);
     this.physics.add.overlap(this.player, enemyGroup, this.handleEnemyTouchedPlayer);
     this.physics.add.overlap(this.player, gemGroup, this.handlePlayerTouchedGem);
+    this.physics.add.overlap(this.player, healthGroup, this.handlePlayerTouchedHealth);
 
     eventBus.on('run:ended', this.handleRunEnded);
     eventBus.on('level:up', this.handleLevelUp);

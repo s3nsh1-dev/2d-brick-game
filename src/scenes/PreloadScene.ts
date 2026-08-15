@@ -58,6 +58,7 @@ export class PreloadScene extends Phaser.Scene {
       BALANCE.vfx.spawnMarker.height,
       BALANCE.vfx.spawnMarker.color,
     );
+    this.bakeCross();
 
     this.bakeActor(PLAYER_ACTOR_ID, BALANCE.player.size, BALANCE.player.color);
 
@@ -223,6 +224,26 @@ export class PreloadScene extends Phaser.Scene {
   /** Bakes a solid square into a texture, so entities can be plain sprites. */
   private bakeSquare(key: string, size: number, color: number): void {
     this.bakeStanding(key, size, size, color);
+  }
+
+  /**
+   * The health pickup: two crossed bars, and the only shape in the game that is not a square.
+   *
+   * The shape is doing the work, not the colour. A player glancing at a screen with two
+   * hundred squares on it will not notice a differently coloured square, but a cross reads
+   * as "not one of them" immediately — and it survives a colourblind palette unchanged.
+   */
+  private bakeCross(): void {
+    const { size, armRatio, color } = BALANCE.healthPickup;
+    const arm = Math.round(size * armRatio);
+    const offset = Math.round((size - arm) / 2);
+
+    const graphics = this.add.graphics();
+    graphics.fillStyle(color, 1);
+    graphics.fillRect(offset, 0, arm, size);
+    graphics.fillRect(0, offset, size, arm);
+    graphics.generateTexture(StaticTextureKey.HEALTH_PICKUP, size, size);
+    graphics.destroy();
   }
 
   /** Bakes a solid rectangle. Squares go through `bakeSquare`; this is for the odd bar. */

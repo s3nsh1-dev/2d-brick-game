@@ -1,19 +1,21 @@
 import { BALANCE } from '../constants/balance';
 import type { EventBus, GameEvents } from '../core/EventBus';
 import type { ObjectPool } from '../core/ObjectPool';
-import type { EnemyData, EnemyDefinition, SpawnEntry, WaveData } from '../data/schema';
+import type { EnemyData, EnemyDefinition, SpawnEntry, Wave, WaveData } from '../data/schema';
 import type { Enemy } from '../entities/Enemy';
 import type { System } from './System';
 
 // Walks the wave timeline and puts enemies on the ring just outside the arena.
 //
-// After the final wave it holds there rather than ending the run: Stage 1 ends on death,
-// not on a clear condition.
+// It does not end the run. When the timeline is exhausted it says so once, and `CombatSystem`
+// decides what a cleared board is worth — it owns the deaths, so it is the only system that
+// can tell whether the arena is actually empty.
 
 export class SpawnSystem implements System {
   private waveIndex = 0;
   private waveElapsed = 0;
   private waveAnnounced = false;
+  private clearedAnnounced = false;
 
   /** Per-spawn-entry state for the current wave, sized once to the widest wave. */
   private readonly entryTimers: number[];
@@ -86,13 +88,44 @@ export class SpawnSystem implements System {
     const isFinalWave = this.waveIndex >= this.waves.waves.length - 1;
     if (this.waveElapsed >= wave.durationSeconds && !isFinalWave) {
       this.advanceWave();
+      return;
     }
+
+    // The timeline is finished when the last wave has run its full length *and* issued every
+    // spawn it owed. Both conditions matter: the duration alone would announce a clear while
+    // enemies were still queued, and the counts alone would announce it early on a wave whose
+    // spawns finish before its clock does — which every wave's do.
+    if (isFinalWave && !this.clearedAnnounced && this.waveElapsed >= wave.durationSeconds) {
+      if (this.allSpawnsIssued(wave)) {
+        this.clearedAnnounced = true;
+        this.bus.emit('waves:cleared');
+      }
+    }
+  }
+
+  /**
+   * True once every entry in `wave` has issued its full count.
+   *
+   * Counted against what was *scheduled*, not what reached the arena: an exhausted enemy pool
+   * drops a spawn silently, and waiting for a body that was never built would hang the run
+   * one enemy short of a win forever.
+   */
+  private allSpawnsIssued(wave: Wave): boolean {
+    for (let i = 0; i < wave.spawns.length; i += 1) {
+      const entry = wave.spawns[i];
+      if (entry !== undefined && (this.entrySpawned[i] ?? 0) < entry.count) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   public destroy(): void {
     // Nothing to unsubscribe: this system only emits. The enemy pool it writes into is
     // owned and released by GameScene.
     this.waveAnnounced = false;
+    this.clearedAnnounced = false;
   }
 
   private advanceWave(): void {

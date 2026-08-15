@@ -16,8 +16,18 @@ export interface GameEvents {
   'enemy:died': [x: number, y: number];
   /** The player's XP total changed. */
   'xp:changed': [total: number];
-  /** The run is over. Carries the final stats GameOverScene displays. */
-  'run:ended': [waveReached: number, xpTotal: number];
+  /**
+   * Every wave has been announced and every scheduled spawn has been issued.
+   *
+   * Not the end of the run: the last enemies are still walking in. `CombatSystem` owns the
+   * decision about when a cleared board becomes a win, because it owns the deaths.
+   */
+  'waves:cleared': [];
+  /**
+   * The run is over. Carries the final stats GameOverScene displays, and whether the player
+   * finished the last wave or was finished by it.
+   */
+  'run:ended': [waveReached: number, xpTotal: number, victory: boolean];
 
   // Presentation events. Nothing in the gameplay path listens to any of these — they exist
   // so AudioSystem and VfxSystem can react without gameplay knowing either exists.
@@ -44,6 +54,8 @@ export interface GameEvents {
   'weapon:fired': [x: number, y: number];
   /** A gem was picked up at this position. */
   'gem:collected': [x: number, y: number];
+  /** A health pickup was taken at this position. */
+  'pickup:health': [x: number, y: number];
 
   /**
    * The player reached a new level, and these are the upgrades on offer.

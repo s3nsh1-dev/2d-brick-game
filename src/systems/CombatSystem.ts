@@ -26,12 +26,22 @@ export class CombatSystem implements System {
   private runEnded = false;
   private hitStopRemaining = 0;
 
+  /**
+   * Set when the wave timeline is exhausted. The run is not over yet — the last enemies are
+   * still on the board, and killing them is the win.
+   */
+  private awaitingClear = false;
+
   private readonly handleWaveStarted = (waveNumber: number): void => {
     this.currentWave = waveNumber;
   };
 
   private readonly handleXpChanged = (total: number): void => {
     this.currentXp = total;
+  };
+
+  private readonly handleWavesCleared = (): void => {
+    this.awaitingClear = true;
   };
 
   public constructor(
@@ -42,6 +52,7 @@ export class CombatSystem implements System {
   ) {
     this.bus.on('wave:started', this.handleWaveStarted);
     this.bus.on('xp:changed', this.handleXpChanged);
+    this.bus.on('waves:cleared', this.handleWavesCleared);
   }
 
   public update(dt: number): void {
@@ -52,6 +63,13 @@ export class CombatSystem implements System {
     this.steerEnemies(dt);
     this.fire();
     this.ageProjectiles(dt);
+
+    // Checked after the fight resolves, so a frame that kills the last enemy wins on that
+    // same frame rather than on the next one.
+    if (this.awaitingClear && this.enemies.activeCount === 0) {
+      this.runEnded = true;
+      this.bus.emit('run:ended', this.currentWave, this.currentXp, true);
+    }
   }
 
   /** Called by GameScene's projectile/enemy overlap. */
@@ -105,13 +123,14 @@ export class CombatSystem implements System {
 
     if (health.isDead) {
       this.runEnded = true;
-      this.bus.emit('run:ended', this.currentWave, this.currentXp);
+      this.bus.emit('run:ended', this.currentWave, this.currentXp, false);
     }
   }
 
   public destroy(): void {
     this.bus.off('wave:started', this.handleWaveStarted);
     this.bus.off('xp:changed', this.handleXpChanged);
+    this.bus.off('waves:cleared', this.handleWavesCleared);
   }
 
   /**
