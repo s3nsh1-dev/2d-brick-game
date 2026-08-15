@@ -4,7 +4,7 @@
 project is finished.
 
 **Self-contained.** Pointing a fresh session at this file, with no other context, is enough to
-start work correctly — *once Stage 2 has landed*. Read §1 first; it may send you away.
+start work correctly — _once Stage 2 has landed_. Read §1 first; it may send you away.
 
 ---
 
@@ -62,7 +62,7 @@ src/scenes/PauseScene.ts
 
 **If any of that is missing, stop.** Go to `docs/STAGE_2_INSTRUCTIONS.md` and finish the stage.
 Starting Stage 3 on an incomplete Stage 2 is the failure mode this project is structured to
-prevent — and it fails worse here than anywhere else, because Stage 3 is a *polish* stage and
+prevent — and it fails worse here than anywhere else, because Stage 3 is a _polish_ stage and
 polishing something unfinished produces a pretty half-game.
 
 ---
@@ -80,15 +80,15 @@ hand-written integrator and broadphase replacing Arcade Physics, seeded PCG32, f
 replay recording, an optional ECS refactor, an optional flow-field pathfinder in a web worker,
 an optional Fastify server that re-runs replays to validate leaderboard scores.
 
-It was a real plan, and its central argument was correct: invariant 1 — *`src/core/` never
-imports Phaser* — has cost effort in every session since Stage 1, and portability had bought
+It was a real plan, and its central argument was correct: invariant 1 — _`src/core/` never
+imports Phaser_ — has cost effort in every session since Stage 1, and portability had bought
 nothing yet. That plan was where the bill got collected.
 
 ### 2b. Why it is not happening
 
 The project's owner made the call: **this project ships as a game, not as an architecture
-proof.** Stage 3 is now the last stage before deployment, and a stage that ends with *"nobody
-can tell the Stage 2 game from the Stage 3 game by playing it"* — the old document's own words —
+proof.** Stage 3 is now the last stage before deployment, and a stage that ends with _"nobody
+can tell the Stage 2 game from the Stage 3 game by playing it"_ — the old document's own words —
 is the wrong last stage for a project that is about to be deployed.
 
 That is a scope decision, not a discovery. It does not make the old plan wrong.
@@ -100,7 +100,7 @@ Do not paper over this. Two things are now true and will stay true:
 1. **Invariant 1 is partially unrealised, and that is now accepted.** `src/core/` stays
    Phaser-free, and it still pays for itself — `StatBlock`, `xpCurve`, `SaveStore` and the
    audio synthesis are unit-tested in bare Node with no DOM shim, which is a genuine and daily
-   return. What it does *not* buy any more is the headless simulation. Keep the invariant: the
+   return. What it does _not_ buy any more is the headless simulation. Keep the invariant: the
    testability is worth it on its own. Do not spend a session "completing" it.
 
 2. **Determinism, replay and server-validated scores are permanently out.** They are all
@@ -146,16 +146,16 @@ work · bundle size · production build · hosting · the deploy runbook.
 
 ### Out of scope — do not build, do not stub, do not hook
 
-| Not this | Why |
-|---|---|
-| Moving game rules out of Phaser, workspaces, `packages/*` | §2b. Cancelled, not deferred |
-| Custom integrator, broadphase, fixed timestep, seeded RNG, replay | Downstream of the above |
-| ECS, `bitecs`, web workers, pathfinding, arena obstacles | Same |
-| Backend, server, leaderboard, accounts | Same |
-| New enemy types, new waves, boss enemies, multiple weapons | Content is finished. Stage 2 tuned the curve; retuning it invalidates that work |
-| **Any balance change at all** | `balance.ts` and `waves.json` are frozen. See below |
-| Level editor | It was only ever justified by the sim/view split |
-| Mobile touch controls, i18n, achievements, online multiplayer | Never planned, still not planned |
+| Not this                                                          | Why                                                                             |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Moving game rules out of Phaser, workspaces, `packages/*`         | §2b. Cancelled, not deferred                                                    |
+| Custom integrator, broadphase, fixed timestep, seeded RNG, replay | Downstream of the above                                                         |
+| ECS, `bitecs`, web workers, pathfinding, arena obstacles          | Same                                                                            |
+| Backend, server, leaderboard, accounts                            | Same                                                                            |
+| New enemy types, new waves, boss enemies, multiple weapons        | Content is finished. Stage 2 tuned the curve; retuning it invalidates that work |
+| **Any balance change at all**                                     | `balance.ts` and `waves.json` are frozen. See below                             |
+| Level editor                                                      | It was only ever justified by the sim/view split                                |
+| Mobile touch controls, i18n, achievements, online multiplayer     | Never planned, still not planned                                                |
 
 ### `balance.ts` and `waves.json` are frozen
 
@@ -168,7 +168,7 @@ either file discards it.
 - Stage 3 adds new keys to `balance.ts` for its own tunables — UI palette, transition durations,
   camera parameters, options defaults. **Adding a key is fine. Changing an existing gameplay
   number is not.**
-- If a Stage 3 pass makes the game measurably harder or easier as a *side effect* — a slower
+- If a Stage 3 pass makes the game measurably harder or easier as a _side effect_ — a slower
   scene transition eating reaction time, a background that hides projectiles — the fix is in the
   Stage 3 change, never in the balance file.
 
@@ -184,15 +184,15 @@ Written against the shipped Stage 2 code so no session plans against an imagined
 
 ### 4a. What Stage 2 left you, and why it matters here
 
-| Foundation | Where | Why Stage 3 cares |
-|---|---|---|
-| Presentation is event-driven and one-directional (inv. 11) | `AudioSystem`, `VfxSystem` | Every effect Stage 3 adds subscribes. You never call `camera.shake()` from gameplay |
-| Emitters and sounds created once at init (inv. 12) | `VfxSystem`, `AudioSystem` | The pattern for any new effect already exists. Follow it |
-| Boot-time texture baking, one texture per frame per definition | `PreloadScene` | The art pipeline is a loop over data. A new visual is a bake call, not an asset |
-| Boot-time audio synthesis, no files | `core/audioSynth.ts` | The repo is asset-free. **Keep it that way** — see §6 |
-| Stats computed, never mutated (inv. 14) | `core/StatBlock.ts` | Options that scale a value plug in here rather than mutating anything |
-| Versioned zod-validated save (inv. 15) | `core/SaveStore.ts` | Options persistence has a home already. Do not invent a second one |
-| Scene teardown verified by listener census (inv. 9) | `GameScene.shutdown` | Every scene Stage 3 adds or changes must extend the census |
+| Foundation                                                     | Where                      | Why Stage 3 cares                                                                   |
+| -------------------------------------------------------------- | -------------------------- | ----------------------------------------------------------------------------------- |
+| Presentation is event-driven and one-directional (inv. 11)     | `AudioSystem`, `VfxSystem` | Every effect Stage 3 adds subscribes. You never call `camera.shake()` from gameplay |
+| Emitters and sounds created once at init (inv. 12)             | `VfxSystem`, `AudioSystem` | The pattern for any new effect already exists. Follow it                            |
+| Boot-time texture baking, one texture per frame per definition | `PreloadScene`             | The art pipeline is a loop over data. A new visual is a bake call, not an asset     |
+| Boot-time audio synthesis, no files                            | `core/audioSynth.ts`       | The repo is asset-free. **Keep it that way** — see §6                               |
+| Stats computed, never mutated (inv. 14)                        | `core/StatBlock.ts`        | Options that scale a value plug in here rather than mutating anything               |
+| Versioned zod-validated save (inv. 15)                         | `core/SaveStore.ts`        | Options persistence has a home already. Do not invent a second one                  |
+| Scene teardown verified by listener census (inv. 9)            | `GameScene.shutdown`       | Every scene Stage 3 adds or changes must extend the census                          |
 
 ### 4b. The honest state of the presentation
 
@@ -233,15 +233,15 @@ Do not start on a broken baseline, and do not "fix it while you're in there".
 Settled, with reasons, so no session re-litigates them. Overrule any of them if you have a
 better argument — but state the argument in prose first.
 
-| Decision | Instead of | Why |
-|---|---|---|
-| **The repo stays asset-free.** All art baked from `Graphics`, all audio synthesized in `core/` | shipping PNGs, sprite sheets, `.ogg` files | It is the single most distinctive property this codebase has, it survived two stages, and it makes every visual a data change rather than an asset-pipeline change. A "real" art pass is not what makes this game good — coherence is |
-| **A palette lives in `balance.ts` and every colour references it** | hex literals per scene | Invariant 5 already bans loose numbers, and colours are the ones that drift first. One palette object is also what makes a colourblind mode a five-line change instead of a sweep |
-| **Options persist through the existing `SaveStore`** | a second `localStorage` key, or none | Invariant 15 already solved versioning and corruption. A second store is a second migration path |
-| **A shared UI kit in `src/ui/`** | hand-built text in each scene | Five scenes currently repeat the same `add.text(...).setOrigin(0.5).setDepth(...)` block with different strings. That repetition is why they look identical and why restyling is a five-file edit |
-| **`src/ui/` is a new top-level folder, not `src/components/`** | putting it in `components/` | `components/` is *behaviour attached to entities* per the directory map. UI widgets are neither. A new folder with one job is cheaper than blurring an existing one — add it to the map in `AGENTS.md` |
-| **Deploy target is a static host** (Vercel, Netlify, GitHub Pages, itch.io) | a Node server | `npm run build` emits static files and the game has no backend. Anything more is operational weight for zero gain |
-| **No new runtime dependencies** | a UI framework, a tween library, a sound library | Phaser has tweens, timers, cameras, text and audio. Everything Stage 3 needs is in the engine already. Dev dependencies for tooling are a separate question — still ask first |
+| Decision                                                                                                                                 | Instead of                                       | Why                                                                                                                                                                                                                                   |
+| ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **The repo stays asset-free.** All art baked from `Graphics`, all audio synthesized in `core/`                                           | shipping PNGs, sprite sheets, `.ogg` files       | It is the single most distinctive property this codebase has, it survived two stages, and it makes every visual a data change rather than an asset-pipeline change. A "real" art pass is not what makes this game good — coherence is |
+| **A palette lives in `balance.ts` and every colour references it**                                                                       | hex literals per scene                           | Invariant 5 already bans loose numbers, and colours are the ones that drift first. One palette object is also what makes a colourblind mode a five-line change instead of a sweep                                                     |
+| **Options persist through the existing `SaveStore`**                                                                                     | a second `localStorage` key, or none             | Invariant 15 already solved versioning and corruption. A second store is a second migration path                                                                                                                                      |
+| **A shared UI kit in `src/ui/`**                                                                                                         | hand-built text in each scene                    | Five scenes currently repeat the same `add.text(...).setOrigin(0.5).setDepth(...)` block with different strings. That repetition is why they look identical and why restyling is a five-file edit                                     |
+| **`src/ui/` is a new top-level folder, not `src/components/`**                                                                           | putting it in `components/`                      | `components/` is _behaviour attached to entities_ per the directory map. UI widgets are neither. A new folder with one job is cheaper than blurring an existing one — add it to the map in `AGENTS.md`                                |
+| **Deploy target is a static host but no deploying just prepare the project to be deploy ready** (Vercel, Netlify, GitHub Pages, itch.io) | a Node server                                    | `npm run build` emits static files and the game has no backend. Anything more is operational weight for zero gain                                                                                                                     |
+| **No new runtime dependencies**                                                                                                          | a UI framework, a tween library, a sound library | Phaser has tweens, timers, cameras, text and audio. Everything Stage 3 needs is in the engine already. Dev dependencies for tooling are a separate question — still ask first                                                         |
 
 ### New dependencies
 
@@ -295,7 +295,7 @@ each addition, run a wave 8 and confirm you can still track projectiles and read
 If you cannot, the background is too loud — that is the whole reason contrast is named here
 rather than left to taste.
 
-**Done when:** a screenshot of the arena is recognisably *a game* rather than a test harness,
+**Done when:** a screenshot of the arena is recognisably _a game_ rather than a test harness,
 nothing on the gameplay layer is harder to see than it was, and the four checks pass.
 
 ---
@@ -373,15 +373,14 @@ conclusion without a measurement has failed even if the code is faster.
 Stage 1**, and Stage 2 added animations, particles, floating text and audio on top.
 
 1. **Establish the baseline.** Wave 8 with pools near capacity, in a production build (`npm run
-   build && npm run preview`), not the dev server. Record frame time, draw calls, and heap
+build && npm run preview`), not the dev server. Record frame time, draw calls, and heap
    growth over sixty seconds. Chrome's performance panel is the tool; the numbers go in the
    commit and in `AGENTS.md`'s budget section.
 2. **Then look at the three things most likely to be wrong**, in this order:
-
    - **Batch breaks.** Every enemy definition bakes its own texture, and Pass B of Stage 2 baked
-     one texture *per animation frame per definition*. Same-texture sprites batch; different
+     one texture _per animation frame per definition_. Same-texture sprites batch; different
      textures break the batch. This is the moment **an atlas finally earns its place** — Stage 2
-     §4a deferred it explicitly with *"sprite-count batching is a Stage 3 problem"*, and this is
+     §4a deferred it explicitly with _"sprite-count batching is a Stage 3 problem"_, and this is
      that problem. Bake the frames into one `RenderTexture` and address them as regions.
      **Measure before and after.** If the draw-call count was never the bottleneck, do not do it.
    - **`Text` objects.** Every Phaser `Text` owns a canvas and re-rasterises on `setText`.
@@ -390,6 +389,7 @@ Stage 1**, and Stage 2 added animations, particles, floating text and audio on t
    - **Allocation in update paths.** Invariant 6 bans `new`, but closures, array literals, object
      literals and string concatenation all allocate too — and `setText(\`XP ${n}\`)` allocates a
      string every time it is called. Record heap growth over sixty seconds before and after.
+
 3. **Bundle size.** ~1.46 MB raw / ~382 kB gzip, all Phaser. Check whether Phaser 4 supports a
    custom build excluding unused subsystems — this project uses no tilemaps, no Matter physics,
    no video, no DOM elements. Check `node_modules/phaser/` for build documentation before
@@ -447,14 +447,14 @@ The last pass in the project.
    boots. A shared link should look like something.
 3. **A real favicon**, baked or inlined as an SVG data URI — the asset-free rule holds here too.
 4. **Build check.** `npm run build` warning-free, `npm run preview` played end-to-end, console
-   empty in the *production* build. Confirm the game still fits and scales correctly at common
+   empty in the _production_ build. Confirm the game still fits and scales correctly at common
    window sizes — read `scale-and-responsive`; the config is `Scale.FIT` with `CENTER_BOTH` and
    has never been checked against a small laptop viewport.
 5. **Deploy.** Static host (§6). Record the URL in `README.md`.
 6. **Close the documentation out.**
    - `ARCHITECTURE.md`: current stage → Stage 3 complete; `src/ui/` in the directory map; the
      event catalogue updated with every event Stage 3 added; "which file do I touch" gets rows
-     for *change how the game looks* and *add a UI widget*.
+     for _change how the game looks_ and _add a UI widget_.
    - `AGENTS.md`: invariants 16–20, the stage table marked complete, the performance budget
      rewritten against Pass D's measurements, `src/ui/` in the directory map.
    - `docs/STATUS.md`: per its own §6 checklist. The mermaid diagram in §3 must show all three
@@ -498,7 +498,7 @@ to. If Stage 2 shipped a different count, renumber and say so rather than leavin
 rendering is verified by playing — that is not a gap, it is the same rule `AGENTS.md` has had
 since Stage 1.
 
-What *is* testable, and therefore must be tested:
+What _is_ testable, and therefore must be tested:
 
 - **The palette module** — every key resolves; a theme variant defines the same key set as the
   default, so a missing colour is a failing test rather than a black square in one mode.
@@ -556,8 +556,8 @@ Your recall for Phaser is overwhelmingly v3, and v4 is a rewrite. Assume it is s
 
 ## 12. How to work
 
-One pass per session. State each file's job in one line before its code. Comment the *why*,
-never the *what*.
+One pass per session. State each file's job in one line before its code. Comment the _why_,
+never the _what_.
 
 Measure before you optimise, and report the number rather than the conclusion.
 

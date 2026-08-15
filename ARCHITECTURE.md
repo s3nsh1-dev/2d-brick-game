@@ -2,35 +2,48 @@
 
 ## Current stage
 
-**Stage 2 — complete. Stage 3 not started.** All five passes are done; `typecheck`, `lint`,
-`test` (127 specs across 9 files) and `build` pass clean, and the game runs with an empty
-browser console. Last verified 2026-08-14.
+**Stage 3 — complete. The project is finished.** All three stages are done; `typecheck`,
+`lint`, `test` (153 specs across 11 files) and `build` pass clean, and the production build
+runs with an empty browser console. Last verified 2026-08-15.
 
-Stage 1 was the playable core. Stage 2 added, in five passes: data-driven enemy definitions
-and a real difficulty curve (A); baked frame animations, synthesised audio, particles,
-floating damage numbers, screen shake and damage flash (B); knockback and hit-stop (C); an XP
-curve, levels, computed stats and pick-1-of-3 upgrades (D); versioned persistence and a pause
-screen (E).
+Stage 1 was the playable core. Stage 2 added feel and content in five passes. Stage 3 was
+**refinement and ship**, in six passes plus one addendum:
 
-Stage 3 is **refinement and ship** — the last stage, after which the game is deployed. It is
-mostly scenes and presentation; it does not change the gameplay systems. An earlier Stage 3
-that would have moved the simulation out of Phaser was cancelled deliberately, and
-`docs/STAGE_3_instructions.md` §2 records why and what that costs. Mobile controls, settings,
-i18n and multiplayer are not planned for any stage.
+- **A** — a palette every colour references, and an arena with a floor, a wall, a vignette
+  and a spawn telegraph, composited into one texture at boot.
+- **B** — `src/ui/`, a widget kit, and every scene rebuilt on it; camera-fade transitions; a
+  HUD that reacts.
+- **C** — readability at two hundred enemies: enemies tint as they take damage, per-frame
+  effect budgets, three distinguishable moments.
+- **G** — *the owner's gameplay addendum*, out of Stage 3's own scope and separated for that
+  reason: waves 11–15, a victory condition, and a health pickup. See invariant 16.
+- **D** — the performance budget measured for the first time since Stage 1, and three
+  optimisations declined on the evidence.
+- **E** — options and accessibility, reversing the "no settings menu" decision.
+- **F** — production hardening, the page around the game, and a deploy-ready build. The game
+  is **not** hosted: the owner's edit to the brief asked for readiness without a deploy, and
+  the runbook is `docs/version3/deployment.md`.
+
+An earlier Stage 3 would have moved the simulation out of Phaser. It was cancelled
+deliberately; `docs/STAGE_3_instructions.md` §2 records why and what it costs. Determinism,
+replay and server-validated scores are permanently out rather than deferred. Mobile controls,
+i18n and multiplayer were never planned and still are not.
+
+The per-pass history, including what went wrong, is `docs/version3/`.
 
 ## The shape of a frame
 
 ```
 GameScene.update(time, delta)
-  dt = min(delta / 1000, BALANCE.time.maxDeltaSeconds)   <- the only ms→s conversion
+  dt = min(delta / 1000, BALANCE.time.maxDeltaSeconds)   <- the simulation's ms→s
   combat.tickHitStop(dt) ? pause physics world, return   <- the frame does not happen
   player.update(dt)                                       <- input becomes velocity
   SpawnSystem.update(dt)                                  <- wave timeline, enemies enter
   CombatSystem.update(dt)                                 <- pursuit, firing, projectile age
-  PickupSystem.update(dt)                                 <- gem magnet
+  PickupSystem.update(dt)                                 <- gem magnet, pickup life
   ProgressionSystem.update(dt)                            <- nothing; levels are event-driven
   AudioSystem.update(dt)                                  <- sfx throttle clocks
-  VfxSystem.update(dt)                                    <- floating damage numbers age
+  VfxSystem.update(dt)                                    <- text and markers age, budgets reset
   (Phaser then steps the physics world and runs colliders)
 ```
 
@@ -40,6 +53,12 @@ happens at all. Skipping the systems alone would not be a freeze: Phaser steps t
 world after `update` returns, so every body would keep drifting through the pause. The scene
 pauses the world to match, which is wiring an engine call to a decision a system made — not
 a rule of its own.
+
+`HUDScene` runs its own clock in parallel and converts its own delta — the health bar drains
+and the hit flash decays by `dt` like everything else. That is the second and only other
+ms-to-seconds conversion in the codebase; it is not downstream of `GameScene`, and inventing
+a bus event to carry `dt` across would have honoured the letter of invariant 8 while
+defeating its point.
 
 `dt` is seconds everywhere below this line. The cap exists so that a tab restored after
 thirty seconds in the background advances one modest step instead of teleporting every body
@@ -53,30 +72,44 @@ building past the stage. This is the one place the scene touches an entity per f
 
 | Scene | Job | Leaves to |
 |---|---|---|
-| `BootScene` | Nothing yet. The seam where boot-time configuration will go. | `PreloadScene` |
-| `PreloadScene` | Loads and validates `enemies.json`, `waves.json` and `upgrades.json`; bakes five frames per actor plus the projectile, gem and spark; registers every animation. | `MenuScene` |
-| `MenuScene` | Title card. Any key or click starts a run. | `GameScene` |
+| `BootScene` | Loads the saved settings, because the preloader bakes art whose colours they decide. The seam Stage 1 left for exactly this. | `PreloadScene` |
+| `PreloadScene` | Loads and validates the three JSON files; composites the arena into one `DynamicTexture`; bakes five frames per actor **per palette**, plus projectile, gem, spark, spawn marker and the health cross; registers every animation. | `MenuScene` |
+| `MenuScene` | Title card, records, and the way into options. Any key starts a run. | `GameScene` |
 | `GameScene` | Builds the world, owns the pools and systems, runs the frame. | `GameOverScene` |
-| `HUDScene` | Runs in parallel with `GameScene`. Draws HP, wave, XP and level. | stopped by `GameScene` |
+| `HUDScene` | Runs in parallel with `GameScene`. Draws health with digits, XP toward the next level, level, wave N of M, and the run's upgrades. Owns one clock, for the bar drain. | stopped by `GameScene` |
 | `UpgradeScene` | Pick-1-of-3, layered over a **paused** `GameScene`. Resumes it on choice. | resumes `GameScene` |
-| `PauseScene` | Escape. Layered over a paused `GameScene` the same way. | resumes `GameScene` |
-| `GameOverScene` | Final stats, the persisted records, and restart. | `GameScene` |
+| `PauseScene` | Escape. Layered over a paused `GameScene` the same way. Shows no run stats: the HUD is above it and undimmed. | resumes `GameScene` |
+| `GameOverScene` | Final stats, the persisted records, and restart. Reports a win differently from a death. | `GameScene` |
+| `OptionsScene` | Volumes and accessibility. Replaces whichever screen opened it and returns there. | `MenuScene` or `PauseScene` |
 
 `UpgradeScene` and `PauseScene` use `scene.pause()`, never `scene.sleep()`: a paused scene
 stops updating but keeps rendering, so the frozen arena stays visible under both. Each
 resumes `GameScene` itself, because a paused scene cannot act on the signal that would tell
 it to wake up.
 
-**No `Phaser.Time.TimerEvent` and no tween exists anywhere in the game**, which is why
-pausing is safe rather than delicate. Every clock in the codebase — spawn intervals, weapon
-cooldown, contact cooldown, knockback, hit-stop, floating text, SFX throttles — is a number
-decremented by `dt` inside something the scene stops calling. A paused scene therefore cannot
-have a timer fire behind its back, because there are none to fire.
+**No `Phaser.Time.TimerEvent` and no tween exists anywhere in the game** — still true after
+Stage 3, and checked rather than assumed — which is why pausing is safe rather than delicate.
+Every clock in the codebase — spawn intervals, weapon cooldown, contact cooldown, knockback,
+hit-stop, floating text, SFX throttles, the health pickup's life, the HUD's drain — is a
+number decremented by `dt` inside something the scene stops calling. A paused scene therefore
+cannot have a timer fire behind its back, because there are none to fire.
+
+**Stage 3 added transitions without breaking that.** Menu, game and game-over fade through
+their own camera and `UpgradeScene` blooms in from the accent colour, but a camera effect
+belongs to one scene's camera and dies with that scene. It is also why the level-up bloom
+lives in `UpgradeScene` rather than in `VfxSystem`: the run pauses the instant a level lands,
+and a camera effect on a paused scene freezes mid-effect and stays there.
 
 `GameScene` launches `HUDScene` in parallel and stops it again when the run ends. `HUDScene`
 holds no reference to `GameScene`, to `Player`, or to anything inside the run — every number
 it draws arrives as a bus event, and it seeds itself with the run's starting values so it
 does not care whether it boots before or after the first frame.
+
+**`GameScene` lifts the HUD above whichever sheet it launches.** A launched scene renders on
+top of every scene started before it, so without `bringToTop` the pause and level-up scrims
+would dim the player's own health, level and upgrade list along with the arena. Those are
+exactly the numbers worth reading while choosing an upgrade, which is why neither sheet
+repeats them.
 
 ### Shutdown
 
@@ -163,17 +196,46 @@ directory that must stay portable.
 
 | Event | Payload | Emitted by | Heard by |
 |---|---|---|---|
-| `wave:started` | `waveNumber` | `SpawnSystem` | `HUDScene`, `CombatSystem` |
-| `player:health-changed` | `current`, `max` | `CombatSystem` | `HUDScene` |
+| `wave:started` | `waveNumber` | `SpawnSystem` | `HUDScene`, `CombatSystem`, `PickupSystem` |
+| `player:health-changed` | `current`, `max` | `CombatSystem`, `PickupSystem` | `HUDScene` |
 | `enemy:died` | `x`, `y` | `CombatSystem` | `PickupSystem`, `AudioSystem`, `VfxSystem` |
 | `xp:changed` | `total` | `PickupSystem` | `HUDScene`, `CombatSystem`, `ProgressionSystem` |
-| `run:ended` | `waveReached`, `xpTotal` | `CombatSystem` | `GameScene` |
+| `waves:cleared` | — | `SpawnSystem` | `CombatSystem` |
+| `run:ended` | `waveReached`, `xpTotal`, `victory` | `CombatSystem` | `GameScene` |
+| `enemy:spawned` | `x`, `y` | `SpawnSystem` | `VfxSystem` |
 | `enemy:damaged` | `x`, `y`, `amount` | `CombatSystem` | `AudioSystem`, `VfxSystem` |
 | `player:damaged` | `x`, `y`, `amount` | `CombatSystem` | `AudioSystem`, `VfxSystem` |
 | `weapon:fired` | `x`, `y` | `CombatSystem` | `AudioSystem` |
 | `gem:collected` | `x`, `y` | `PickupSystem` | `AudioSystem`, `VfxSystem` |
-| `level:up` | `level`, `offerA`, `offerB`, `offerC` | `ProgressionSystem` | `GameScene`, `HUDScene`, `AudioSystem` |
-| `upgrade:chosen` | `upgradeId` | `UpgradeScene` | `ProgressionSystem` |
+| `pickup:health` | `x`, `y` | `PickupSystem` | `AudioSystem`, `VfxSystem` |
+| `level:up` | `level`, `offerA`, `offerB`, `offerC` | `ProgressionSystem` | `GameScene`, `AudioSystem` |
+| `upgrade:chosen` | `upgradeId` | `UpgradeScene` | `ProgressionSystem`, `GameScene`, `HUDScene` |
+| `options:changed` | — | `OptionsScene` | `AudioSystem` |
+
+Five of those are Stage 3's, and each earns its place differently:
+
+- **`enemy:spawned`** is presentation only — `VfxSystem` marks the wall an enemy is about to
+  cross. It is bounded by the spawn intervals in `waves.json`, the slowest clocks in the game.
+- **`waves:cleared`** carries nothing and says only that the timeline is exhausted.
+  `SpawnSystem` knows when it has issued every spawn; only `CombatSystem` knows whether the
+  board is empty, because it owns the deaths. Splitting it that way is what keeps the win
+  condition from needing a system to reach into another.
+- **`run:ended`** grew a `victory` flag rather than gaining a sibling event, so there is
+  still exactly one way for a run to end and one place that decides.
+- **`pickup:health`** is the health pickup's presentation event, and the reason
+  `player:health-changed` now has two emitters. The event states a fact about the player, not
+  about combat; two emitters of one fact is a far smaller thing than a direct reference
+  between two systems that do not own each other.
+- **`options:changed`** exists because a volume change has to be audible *immediately* from a
+  screen opened over a paused run — and a paused scene's systems do not tick. A bus listener
+  is a plain function call and does not care what is frozen underneath it.
+
+`level:up` lost `HUDScene` as a listener, which fixed a real bug. The HUD used to paint the
+level only when that event fired, and it stops firing once fewer than three upgrades remain
+uncapped — so a long run showed a level frozen in the low twenties. The HUD now derives the
+level from `core/xpCurve` applied to the XP total, which is the same pure function
+`ProgressionSystem` uses on the same input. Two readings of one number cannot disagree if
+only one of them is a computation.
 
 The four presentation events exist so `AudioSystem` and `VfxSystem` can react without
 gameplay knowing either exists. Each is bounded by a cooldown — `weapon:fired` by the
@@ -255,11 +317,24 @@ rather than early.
 | Change how hard the game is | `src/constants/balance.ts` for base stats, `waves.json` for the curve. |
 | Add a scene | A new file in `src/scenes/`, its key in `constants/keys.ts`, its class in `game.config.ts`. |
 | Add a cross-cutting signal | A line in the `GameEvents` interface, then emit and subscribe. Update the table above. |
+| **Change how the game looks** | `BALANCE.palette` for any colour, `BALANCE.ui` for any size or spacing. Both are read by `src/ui/`, so one edit restyles every scene. The arena itself is `PreloadScene.bakeArena`. |
+| **Add a UI widget** | A file in `src/ui/`, composed from `Panel` and `Label`. Scenes position it; the widget decides how it looks. Do not add one until a second scene needs it — Stage 3's kit was built for the screens that exist. |
+| **Add an option** | A field on `Settings` in `core/settings.ts` (the zod schema is the type), a row in `OptionsScene.buildRows`, and a reader. Bump `SAVE_VERSION` and add a migration if the shape changes. |
+| **Change what an effect costs at scale** | `BALANCE.vfx.budget`. The events still fire and the gameplay still resolves; only the drawing is capped. |
+| **Re-measure performance** | Set `BALANCE.debug.startWave` to 8, `npm run build && npm run preview`, and see the method recorded in `AGENTS.md`. |
 
 ## Known deviations from the letter of the spec
 
 - `src/__tests__/` holds five test files, not the two named in `docs/KICKSTART.md`.
   `AGENTS.md` says Vitest covers `src/core/` and `src/components/`, and the broader rule was
   chosen deliberately. `Controls.ts` remains untested because it imports Phaser.
-- `vite.config.ts` raises `build.chunkSizeWarningLimit`. Phaser is a ~1.3 MB module graph
-  with no useful split point, and `AGENTS.md` requires a warning-free build.
+- `vite.config.ts` raises `build.chunkSizeWarningLimit`. Phaser is a ~1.5 MB module graph
+  with no useful split point, and `AGENTS.md` requires a warning-free build. Stage 3 measured
+  the one available alternative and declined it; the comment in that file carries the numbers.
+- **`core/settings.ts` imports `constants/balance`** — the only file in `core/` that imports
+  anything from `src/`. The alternative was a second copy of the three default volumes,
+  drifting from the ones the audio system actually starts at. `constants/` holds no logic and
+  imports nothing, so the portability invariant is untouched: `core/` still runs in a bare
+  Node test with no DOM, which the 153 specs demonstrate.
+- **Invariant 16 has one deliberate exception**, the owner's gameplay addendum. `AGENTS.md`
+  invariant 16 records what it covers and what evidence survives it.
