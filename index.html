@@ -43,28 +43,35 @@
         font-family: monospace;
       }
       /*
-        The canvas is placed by CSS, not by the scale manager.
+        `position: fixed; inset: 0` rather than `width/height: 100%`, and it is load-bearing.
 
-        Phaser's `CENTER_BOTH` centres by measuring the parent and writing margins onto the
-        canvas. That arithmetic is correct only when the parent bounds it measured and the
-        canvas's own CSS size agree, and they can disagree at a device pixel ratio above 1 or
-        under browser zoom — which lands the canvas against the top-left corner. Flexbox has
-        no such failure mode: whatever size Phaser gives the canvas, the browser centres it.
+        Phaser's scale manager decides how large to draw the game by measuring this element
+        with `getBoundingClientRect()`. A percentage height only resolves if every ancestor
+        has a definite height, and when that chain breaks the element shrink-wraps its own
+        content — so the manager measures the canvas it just sized, concludes the parent is
+        exactly the game's size, and scales by 1. That is the bug where the game sat at a
+        native 1280x720 in the top-left of a 1440p window. A fixed element is the viewport by
+        construction and cannot collapse.
 
-        The config is `NO_CENTER` to match. Two centring mechanisms would both apply, and the
-        margins would push the canvas back off centre.
+        The canvas is then placed by flexbox rather than by `CENTER_BOTH`, which centres by
+        writing margins the manager computes from the same measurement. One mechanism, and
+        the one the browser cannot get wrong; the config says `NO_CENTER` to match, because
+        two would both apply and push the canvas back off centre.
       */
       #game {
-        width: 100%;
-        height: 100%;
+        position: fixed;
+        inset: 0;
         display: flex;
         align-items: center;
         justify-content: center;
       }
-      /* Inline is the default, and an inline element sits on a text baseline with descender
-         space beneath it. That gap is enough to letterbox a window that should fit exactly. */
       #game canvas {
+        /* Inline is the default, and an inline element sits on a text baseline with
+           descender space beneath it — enough to letterbox a window that should fit
+           exactly. `flex: none` stops the row from shrinking a canvas that already
+           has the exact size the scale manager asked for. */
         display: block;
+        flex: none;
       }
       /* Both overlays sit under the same rules: centred, full-bleed, above the canvas. */
       #boot,

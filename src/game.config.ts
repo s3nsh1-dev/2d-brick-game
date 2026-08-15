@@ -24,9 +24,10 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
     // the art and resizing the world would change how far a player can kite, which is
     // gameplay (invariant 16).
     //
-    // NO_CENTER because `index.html` centres the canvas with flexbox instead. See the
-    // comment there; the short version is that the scale manager's margin arithmetic can
-    // disagree with the canvas's CSS size at a device pixel ratio above 1.
+    // NO_CENTER because `index.html` centres the canvas with flexbox instead. Both the
+    // scale factor and the centring margins are computed from one number — the parent
+    // element's measured bounds — so a parent that collapses gets you native size in the
+    // top-left corner. The comment in `index.html` is the full account.
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.NO_CENTER,
     width: BALANCE.world.width,

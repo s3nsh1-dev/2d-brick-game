@@ -64,27 +64,50 @@ recorded exception and it is unavoidable — the page has to paint before any Ja
 
   ![The game letterboxed in a short viewport](../screenshots/letterbox.png)
 
-### The centring moved out of Phaser and into CSS
+### The scaling moved out of Phaser's DOM measurement and into CSS
 
 Reported after the stage closed, and worth recording because the check above did not catch it:
-on a real screen the canvas landed against the **top-left corner** instead of centring.
+on a 1440p monitor the game sat at a native **1280×720 in the top-left corner** of the window,
+neither scaled up nor centred.
 
-`Scale.CENTER_BOTH` centres by measuring the parent element and writing `marginLeft` and
-`marginTop` onto the canvas. That arithmetic is right only when the parent bounds it measured
-and the canvas's own CSS size agree, and they can disagree at a device pixel ratio above 1 or
-under browser zoom — neither of which a headless browser at DPR 1 reproduces, which is exactly
-why eight window sizes all passed and a laptop still failed.
+Two symptoms, one cause, and the first diagnosis was wrong. It looked like a centring bug, so
+the first fix addressed centring only — and the screenshot that came back showed the canvas
+still unscaled, which ruled that out. Reading `ScaleManager.js` rather than guessing gave the
+real answer:
 
-The fix is to stop doing the arithmetic: `#game` is a flex container that centres its child,
-and the config is `NO_CENTER` so the scale manager does not also write margins. Whatever size
-Phaser gives the canvas, the browser places it. `#game canvas { display: block }` came with it
-— an inline canvas sits on a text baseline and carries descender space beneath it, which is
-enough to letterbox a window that should fit exactly.
+```js
+// updateScale(), the branch FIT falls into
+this.displaySize.setSize(this.parentSize.width, this.parentSize.height);
+```
+
+**`FIT` scales relative to the parent element's measured bounds, and `CENTER_BOTH` computes its
+margins from the same measurement.** One number drives both. `parentSize` comes from
+`#game.getBoundingClientRect()`, and `#game` was sized with `width/height: 100%` — a percentage
+that only resolves if every ancestor has a definite height. When that chain breaks the element
+shrink-wraps its content, so the manager measured the canvas it had just sized, concluded the
+parent was exactly the game's size, scaled by 1 and centred by 0. Native size, top-left corner,
+both symptoms from one collapsed measurement.
+
+The fix removes the dependency rather than patching the arithmetic:
+
+- **`#game` is `position: fixed; inset: 0`.** A fixed element is the viewport by construction
+  and cannot collapse, whatever any ancestor's height does.
+- **The canvas is placed by flexbox**, with the config set to `NO_CENTER` so the manager does
+  not also write margins — two mechanisms would both apply and push it back off centre.
+- **`display: block; flex: none`** on the canvas: inline elements sit on a text baseline and
+  carry descender space beneath them, and a flex row will happily shrink a child that already
+  has exactly the size it was given.
+
+Verified at 2222×1177: parent measured at full viewport, canvas 2094×1178 — **full browser
+height**, equal 64 px pillarbox bands, pointer input still mapping correctly through a 1.64×
+CSS scale. And directly against the cause: setting `html`/`body` height to `auto` at runtime no
+longer collapses the parent.
 
 **The lesson is about the check, not the bug.** "Verified at eight window sizes" was true and
-still missed a whole class of failure, because every one of those sizes shared the one variable
-that mattered. A verification environment that differs from the target in a single invisible
-respect will pass every case you can think of.
+still missed it, because every one of those sizes was measured in a headless browser whose
+ancestor height chain happened to resolve. A verification environment that differs from the
+target in one invisible respect will pass every case you can think of — and a plausible
+first diagnosis, written up confidently, is worth exactly as much as the evidence under it.
 
 ---
 
