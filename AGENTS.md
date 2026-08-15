@@ -113,11 +113,41 @@ PreloadScene → this.load.json() → schema.parse() → typed object into the r
 
 ## Performance budgets
 
-Stage 1 targets are deliberately generous; Stage 2 tightens them.
+**The budget is met, and this is the measurement rather than the claim.** Taken in Stage 3
+Pass D against a production build (`npm run build && npm run preview`), not the dev server.
+
+| | |
+|---|---|
+| Method | GL draw calls counted by wrapping the live WebGL context; frame times from `requestAnimationFrame`; heap from `performance.memory`. Phaser 4's WebGL renderer exposes no draw-call counter of its own — only the Canvas one has `drawCount` |
+| Conditions | `BALANCE.debug.startWave = 8`, run for **133 s / 7,959 frames**, up to **220 enemies alive** (the pool ceiling) |
+| Environment | Chrome 151, WebGL2 via ANGLE on AMD Radeon (radeonsi renoir), 32 texture units, 1280×720 at DPR 1 |
+| **Frame time** | mean **16.68 ms**, p50 16.70, p95 16.80, p99 17.00, **max 17.60** |
+| **Frame rate** | mean **59.9 fps**; no frame ever doubled — the worst frame missed vsync by 0.9 ms |
+| **Draw calls** | **6–10 per frame**, mean 6.4, with 220 sprites on screen |
+| **Heap over 133 s** | 79.67 MB → 71.19 MB, i.e. **−8.5 MB**. It shrinks; there is no leak and no steady allocation |
+
+Re-measure by setting `BALANCE.debug.startWave` to 8 and repeating the above. That constant
+exists for this and is inert at its default of 1.
+
+### Three optimisations considered and *not* made
+
+Recorded so nobody re-derives them. A negative result is a result.
+
+- **No texture atlas.** Stage 2 deferred this as "a Stage 3 problem". It is not a problem:
+  220 sprites cost 6–10 draw calls because the GPU exposes 32 texture units and Phaser 4
+  binds the game's ~81 tiny textures across them. There is no batch break to fix.
+- **No `BitmapText`.** `Text` re-rasterises its canvas on `setText`, but the heap *fell* over
+  133 s and no frame missed vsync. Pass C's per-frame cap on damage numbers already bounds
+  the rasterisation to two a frame.
+- **No allocation hunt.** Negative heap growth over 7,959 frames is the evidence that the
+  existing discipline holds.
+
+### Standing rules
 
 - 60fps with 200 active enemies and 100 active projectiles on mid-range hardware.
 - Zero allocations in the hot path — no object literals, array literals, closures, or string concatenation inside `update()`.
 - Reuse vector math targets; `src/core/math.ts` exposes scratch vectors for this.
+- **Invariant 20: no performance change lands without a before/after number in its commit.**
 
 ## Testing
 
