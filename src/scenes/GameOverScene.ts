@@ -67,7 +67,15 @@ export class GameOverScene extends Phaser.Scene {
     const { width, height } = BALANCE.world;
 
     addArenaBackdrop(this);
-    new Panel(this, width / 2, height / 2 + 6, 620, 428);
+
+    // The panel's own bottom edge, so the button below can be placed against it rather than at
+    // an offset that happened to look right. At 428 tall the button finished 5px short of the
+    // border and read as clipped.
+    const panelCentreY = height / 2 + 6;
+    const panelHeight = 452;
+    const panelBottom = panelCentreY + panelHeight / 2;
+
+    new Panel(this, width / 2, panelCentreY, 620, panelHeight);
 
     // The two endings should not share a screen that only differs in one word. Clearing the
     // arena is the whole point of the game, and it says so.
@@ -82,25 +90,31 @@ export class GameOverScene extends Phaser.Scene {
       .setVariantColor(this.victory ? BALANCE.palette.uiAccent : BALANCE.palette.uiText);
 
     if (this.victory) {
-      new Label(this, width / 2, height / 2 - 136, 'every wave survived', LabelVariant.DIM)
+      new Label(this, width / 2, height / 2 - 134, 'every wave survived', LabelVariant.DIM)
         .setOrigin(0.5);
     }
 
-    this.showRun();
+    // The victory subtitle is inserted into a gap the death screen leaves empty, so the block
+    // beneath it moves down to keep it from crowding the captions. There is slack below: the
+    // numbers clear the personal-best banner either way.
+    this.showRun(this.victory ? 14 : 0);
     this.showPersonalBest();
     this.showUpgrades();
+
+    const { button, margin } = BALANCE.ui;
+    const buttonY = panelBottom - margin - button.height / 2;
 
     new Label(
       this,
       width / 2,
-      height / 2 + 152,
+      buttonY - button.height / 2 - margin,
       `best wave ${String(this.records.bestWave)}` +
         `   ·   high score ${String(this.records.highScoreXp)} xp` +
         `   ·   ${String(this.records.totalRuns)} runs`,
       LabelVariant.SMALL,
     ).setOrigin(0.5);
 
-    new Button(this, width / 2, height / 2 + 192, BALANCE.ui.button.width, 'RUN AGAIN', this.restart);
+    new Button(this, width / 2, buttonY, button.width, 'RUN AGAIN', this.restart);
     new Label(this, width / 2, height - 42, 'or press any key', LabelVariant.SMALL).setOrigin(0.5);
 
     this.input.keyboard?.once(Phaser.Input.Keyboard.Events.ANY_KEY_DOWN, this.restart);
@@ -109,7 +123,7 @@ export class GameOverScene extends Phaser.Scene {
   }
 
   /** The three numbers the run produced, as headings rather than a sentence. */
-  private showRun(): void {
+  private showRun(offsetY: number): void {
     const { width, height } = BALANCE.world;
     const level = levelForXp(this.xpTotal, BALANCE.progression.xp);
 
@@ -126,8 +140,8 @@ export class GameOverScene extends Phaser.Scene {
       const x = left + spacing * index;
       // The caption clears the digits below it: a TITLE label is 46px tall and centred, so
       // anything inside ~26px of it collides with the number rather than labelling it.
-      new Label(this, x, height / 2 - 116, caption, LabelVariant.SMALL).setOrigin(0.5);
-      new Label(this, x, height / 2 - 80, value, LabelVariant.TITLE).setOrigin(0.5);
+      new Label(this, x, height / 2 - 116 + offsetY, caption, LabelVariant.SMALL).setOrigin(0.5);
+      new Label(this, x, height / 2 - 80 + offsetY, value, LabelVariant.TITLE).setOrigin(0.5);
     }
   }
 
