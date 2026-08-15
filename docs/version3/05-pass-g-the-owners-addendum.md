@@ -101,6 +101,8 @@ The flow is split across two systems, deliberately:
 `run:ended` gained that third parameter, which is why the game over screen can say *you won*
 rather than *you died*, and why its empty-upgrade-state text had to change too.
 
+![The victory screen after clearing wave 15](../screenshots/victory.png)
+
 ### A health pickup
 
 A cross — every other object in this game is a square, so the shape is what identifies it, and
