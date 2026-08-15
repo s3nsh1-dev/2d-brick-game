@@ -22,6 +22,10 @@ export class MenuScene extends Phaser.Scene {
     fadeToScene(this, SceneKey.GAME);
   };
 
+  private readonly openOptions = (): void => {
+    this.scene.start(SceneKey.OPTIONS, { returnTo: SceneKey.MENU });
+  };
+
   public constructor() {
     super(SceneKey.MENU);
   }
@@ -34,7 +38,7 @@ export class MenuScene extends Phaser.Scene {
 
     addArenaBackdrop(this);
 
-    new Panel(this, width / 2, height / 2 - 24, 580, 306);
+    new Panel(this, width / 2, height / 2 - 8, 580, 380);
 
     new Label(this, width / 2, height / 2 - 136, 'ARENA', LabelVariant.TITLE).setOrigin(0.5);
     new Label(this, width / 2, height / 2 - 82, 'survive every wave', LabelVariant.ACCENT)
@@ -49,9 +53,10 @@ export class MenuScene extends Phaser.Scene {
     ).setOrigin(0.5);
     new Label(this, width / 2, height / 2 - 2, 'ESC pauses.', LabelVariant.DIM).setOrigin(0.5);
 
-    new Button(this, width / 2, height / 2 + 56, button.width, 'BEGIN', this.begin);
+    new Button(this, width / 2, height / 2 + 48, button.width, 'BEGIN', this.begin);
+    new Button(this, width / 2, height / 2 + 48 + button.height + button.gap, button.width, 'OPTIONS', this.openOptions);
 
-    new Label(this, width / 2, height / 2 + 96, 'or press any key', LabelVariant.SMALL)
+    new Label(this, width / 2, height / 2 + 130, 'or press any key to begin', LabelVariant.SMALL)
       .setOrigin(0.5);
 
     this.showRecords();

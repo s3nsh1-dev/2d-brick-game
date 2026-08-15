@@ -5,6 +5,7 @@ import { GameOverScene } from './scenes/GameOverScene';
 import { GameScene } from './scenes/GameScene';
 import { HUDScene } from './scenes/HUDScene';
 import { MenuScene } from './scenes/MenuScene';
+import { OptionsScene } from './scenes/OptionsScene';
 import { PauseScene } from './scenes/PauseScene';
 import { PreloadScene } from './scenes/PreloadScene';
 import { UpgradeScene } from './scenes/UpgradeScene';
@@ -39,5 +40,6 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
     GameOverScene,
     UpgradeScene,
     PauseScene,
+    OptionsScene,
   ],
 };

@@ -3,8 +3,9 @@ import { Animator } from '../components/Animator';
 import { Health } from '../components/Health';
 import { BALANCE } from '../constants/balance';
 import { Depth } from '../constants/depths';
-import { AnimState, frameTextureKey } from '../core/animKeys';
+import { AnimState, frameTextureKey, paletteActorId } from '../core/animKeys';
 import { damageTint } from '../core/color';
+import { settings } from '../platform/settings';
 import type { EnemyDefinition } from '../data/schema';
 
 // Any enemy. Holds its own state and nothing else — it does not know where the player is or
@@ -84,8 +85,10 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     this.clearTint();
 
     // A pooled enemy is reused across types, and the frames a brute plays are not the
-    // frames a swarmer plays.
-    this.animator.retarget(definition.id);
+    // frames a swarmer plays. The palette chooses between two sets baked at boot, so an
+    // enemy already walking keeps the colours it entered with — the swap lands on the next
+    // one to spawn rather than repainting the board mid-wave.
+    this.animator.retarget(paletteActorId(definition.id, settings.get().colourblind));
     // `setBodySize`, because the animation sets the texture but never the physics body, and
     // a pooled brute reused as a swarmer would keep hitting at the brute's 30px reach.
     this.setBodySize(definition.size, definition.size);

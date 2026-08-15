@@ -67,6 +67,16 @@ export interface GameEvents {
   'level:up': [level: number, offerA: string, offerB: string, offerC: string];
   /** The player picked one of the offers. Carries the upgrade id. */
   'upgrade:chosen': [upgradeId: string];
+
+  /**
+   * A setting changed. Carries nothing: the settings store is the single source, and every
+   * listener reads it directly rather than being handed a copy that could go stale.
+   *
+   * It exists because volume has to change *audibly*, at once, from an options screen opened
+   * over a paused run — and a paused scene's systems do not tick. A bus listener is a plain
+   * function call and does not care that the scene beneath it is frozen.
+   */
+  'options:changed': [];
 }
 
 /**

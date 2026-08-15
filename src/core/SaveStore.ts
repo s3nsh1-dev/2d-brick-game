@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DEFAULT_SETTINGS, settingsSchema, type Settings } from './settings';
 
 // Persistent records across runs. Portable TypeScript: no Phaser, and — just as importantly
 // — no DOM. Storage arrives as an adapter, which is what lets this be tested in a bare Node
@@ -18,7 +19,7 @@ export interface StorageAdapter {
 export const SAVE_KEY = 'arena.save';
 
 /** Bump when the shape changes, and add a migration for the version being left behind. */
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 export const saveDataSchema = z.strictObject({
   version: z.literal(SAVE_VERSION),
@@ -28,6 +29,8 @@ export const saveDataSchema = z.strictObject({
   bestWave: z.number().int().nonnegative(),
   /** How many runs have been finished, ever. */
   totalRuns: z.number().int().nonnegative(),
+  /** Volumes and accessibility toggles. Added in v3, when there was finally a UI for them. */
+  settings: settingsSchema,
 });
 
 export type SaveData = z.infer<typeof saveDataSchema>;
@@ -45,11 +48,26 @@ const version1Schema = z.strictObject({
   bestWave: z.number().int().nonnegative(),
 });
 
+/**
+ * Version 2: the record as it shipped through Stage 2 — records but no settings.
+ *
+ * This is the first version that ever reached a player's browser, so this is the first
+ * migration that has to be right. Stage 2 wrote the v1 path speculatively; this one is the
+ * reason it was worth writing.
+ */
+const version2Schema = z.strictObject({
+  version: z.literal(2),
+  highScoreXp: z.number().int().nonnegative(),
+  bestWave: z.number().int().nonnegative(),
+  totalRuns: z.number().int().nonnegative(),
+});
+
 export const EMPTY_SAVE: SaveData = {
   version: SAVE_VERSION,
   highScoreXp: 0,
   bestWave: 0,
   totalRuns: 0,
+  settings: DEFAULT_SETTINGS,
 };
 
 export class SaveStore {
@@ -113,7 +131,17 @@ export class SaveStore {
       highScoreXp: Math.max(previous.highScoreXp, Math.max(0, Math.floor(xpTotal))),
       bestWave: Math.max(previous.bestWave, Math.max(0, Math.floor(waveReached))),
       totalRuns: previous.totalRuns + 1,
+      // Carried through untouched. Finishing a run must never rewrite what the player chose.
+      settings: previous.settings,
     };
+
+    this.save(updated);
+    return updated;
+  }
+
+  /** Writes the settings back without touching the records beside them. */
+  public saveSettings(settings: Settings): SaveData {
+    const updated: SaveData = { ...this.load(), settings };
 
     this.save(updated);
     return updated;
@@ -139,15 +167,30 @@ export class SaveStore {
  * a shape from the future is how a migration corrupts data rather than rescuing it.
  */
 function migrate(parsed: unknown): SaveData | undefined {
-  const legacy = version1Schema.safeParse(parsed);
-  if (legacy.success) {
+  const fromV2 = version2Schema.safeParse(parsed);
+  if (fromV2.success) {
     return {
       version: SAVE_VERSION,
-      highScoreXp: legacy.data.highScoreXp,
-      bestWave: legacy.data.bestWave,
+      highScoreXp: fromV2.data.highScoreXp,
+      bestWave: fromV2.data.bestWave,
+      totalRuns: fromV2.data.totalRuns,
+      // A v2 save predates the options screen, so the player never expressed a preference.
+      // Defaults are the honest reading of "not chosen", and both accessibility toggles
+      // default to off — a migration must never switch something on behind a player's back.
+      settings: DEFAULT_SETTINGS,
+    };
+  }
+
+  const fromV1 = version1Schema.safeParse(parsed);
+  if (fromV1.success) {
+    return {
+      version: SAVE_VERSION,
+      highScoreXp: fromV1.data.highScoreXp,
+      bestWave: fromV1.data.bestWave,
       // Unknowable from a v1 save. Zero understates it, which is the safe direction for a
       // counter nothing else depends on.
       totalRuns: 0,
+      settings: DEFAULT_SETTINGS,
     };
   }
 

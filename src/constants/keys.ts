@@ -10,6 +10,7 @@ export const SceneKey = {
   GAME_OVER: 'GameOver',
   UPGRADE: 'Upgrade',
   PAUSE: 'Pause',
+  OPTIONS: 'Options',
 } as const;
 
 export type SceneKey = (typeof SceneKey)[keyof typeof SceneKey];

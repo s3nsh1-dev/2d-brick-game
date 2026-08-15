@@ -23,9 +23,15 @@ export class Button {
 
   private readonly handleOut = (): void => {
     this.panel.setFillStyle(BALANCE.palette.uiPanel, BALANCE.ui.panel.fillAlpha);
-    this.panel.setStrokeStyle(BALANCE.ui.panel.borderWidth, BALANCE.palette.uiPanelEdge);
+    this.panel.setStrokeStyle(
+      BALANCE.ui.panel.borderWidth,
+      this.highlighted ? BALANCE.palette.uiAccent : BALANCE.palette.uiPanelEdge,
+    );
     this.label.setVariantColor(BALANCE.palette.uiText);
   };
+
+  /** True while the keyboard cursor is on this button, which reads the same as hover. */
+  private highlighted = false;
 
   private readonly handleDown = (): void => {
     this.panel.setFillStyle(BALANCE.palette.uiAccent, BALANCE.ui.panel.fillAlpha);
@@ -61,6 +67,21 @@ export class Button {
 
   public setText(text: string): void {
     this.label.setText(text);
+  }
+
+  /**
+   * Marks this button as the keyboard's current target.
+   *
+   * A screen driven by arrow keys needs somewhere to *be*, and reusing the hover appearance
+   * means a player switching between mouse and keyboard sees one idea, not two.
+   */
+  public setHighlighted(highlighted: boolean): void {
+    this.highlighted = highlighted;
+    if (highlighted) {
+      this.handleOver();
+    } else {
+      this.handleOut();
+    }
   }
 
   /** Listeners come off with the objects they are on, which the scene destroys for us. */

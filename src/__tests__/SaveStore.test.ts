@@ -7,6 +7,7 @@ import {
   type SaveData,
   type StorageAdapter,
 } from '../core/SaveStore';
+import { DEFAULT_SETTINGS, type Settings } from '../core/settings';
 
 // The adapter is why this file needs no DOM and no `jsdom`: `vitest.config.ts` is
 // `environment: 'node'`, and invariant 1 means anything in core/ has to pass there.
@@ -44,11 +45,20 @@ class HostileStorage implements StorageAdapter {
   }
 }
 
+const CHOSEN_SETTINGS: Settings = {
+  masterVolume: 0.4,
+  sfxVolume: 0.2,
+  musicVolume: 0,
+  reducedMotion: true,
+  colourblind: true,
+};
+
 const FILLED: SaveData = {
   version: SAVE_VERSION,
   highScoreXp: 240,
   bestWave: 7,
   totalRuns: 12,
+  settings: CHOSEN_SETTINGS,
 };
 
 describe('SaveStore', () => {
@@ -146,6 +156,54 @@ describe('SaveStore', () => {
         highScoreXp: 88,
         bestWave: 4,
         totalRuns: 0,
+        settings: DEFAULT_SETTINGS,
+      });
+    });
+
+    // The v2 record is the first one that ever reached a real browser, so this is the first
+    // migration that has to be right rather than merely written.
+    it('brings a version 2 save forward, keeping every record it carried', () => {
+      const storage = new MemoryStorage();
+      storage.items.set(
+        SAVE_KEY,
+        JSON.stringify({ version: 2, highScoreXp: 512, bestWave: 11, totalRuns: 37 }),
+      );
+
+      expect(new SaveStore(storage).load()).toEqual({
+        version: SAVE_VERSION,
+        highScoreXp: 512,
+        bestWave: 11,
+        totalRuns: 37,
+        settings: DEFAULT_SETTINGS,
+      });
+    });
+
+    it('never switches an accessibility option on during a migration', () => {
+      const storage = new MemoryStorage();
+      storage.items.set(
+        SAVE_KEY,
+        JSON.stringify({ version: 2, highScoreXp: 1, bestWave: 1, totalRuns: 1 }),
+      );
+
+      const migrated = new SaveStore(storage).load();
+
+      expect(migrated.settings.reducedMotion).toBe(false);
+      expect(migrated.settings.colourblind).toBe(false);
+    });
+
+    it('persists a migrated save so the next boot reads v3 directly', () => {
+      const storage = new MemoryStorage();
+      storage.items.set(
+        SAVE_KEY,
+        JSON.stringify({ version: 2, highScoreXp: 5, bestWave: 2, totalRuns: 3 }),
+      );
+
+      const store = new SaveStore(storage);
+      store.saveSettings(store.load().settings);
+
+      expect(JSON.parse(storage.items.get(SAVE_KEY) ?? '{}')).toMatchObject({
+        version: SAVE_VERSION,
+        totalRuns: 3,
       });
     });
 
@@ -184,6 +242,7 @@ describe('SaveStore', () => {
         highScoreXp: 100,
         bestWave: 5,
         totalRuns: 1,
+        settings: DEFAULT_SETTINGS,
       });
     });
   });
@@ -227,6 +286,7 @@ describe('SaveStore', () => {
         highScoreXp: 60,
         bestWave: 4,
         totalRuns: 1,
+        settings: DEFAULT_SETTINGS,
       });
     });
 
@@ -238,5 +298,71 @@ describe('SaveStore', () => {
       expect(after.bestWave).toBe(0);
       expect(after.highScoreXp).toBe(12);
     });
+  });
+});
+
+describe('settings persistence', () => {
+  it('round-trips every option the player can change', () => {
+    const storage = new MemoryStorage();
+
+    new SaveStore(storage).saveSettings(CHOSEN_SETTINGS);
+
+    expect(new SaveStore(storage).load().settings).toEqual(CHOSEN_SETTINGS);
+  });
+
+  it('leaves the records alone when only the settings change', () => {
+    const storage = new MemoryStorage();
+    const store = new SaveStore(storage);
+    store.save(FILLED);
+
+    store.saveSettings(DEFAULT_SETTINGS);
+    const after = store.load();
+
+    expect(after.highScoreXp).toBe(FILLED.highScoreXp);
+    expect(after.bestWave).toBe(FILLED.bestWave);
+    expect(after.totalRuns).toBe(FILLED.totalRuns);
+    expect(after.settings).toEqual(DEFAULT_SETTINGS);
+  });
+
+  it('leaves the settings alone when only a run is recorded', () => {
+    const storage = new MemoryStorage();
+    const store = new SaveStore(storage);
+    store.saveSettings(CHOSEN_SETTINGS);
+
+    expect(store.recordRun(9, 300).settings).toEqual(CHOSEN_SETTINGS);
+  });
+
+  it('falls back to defaults when the stored settings are malformed', () => {
+    const storage = new MemoryStorage();
+    storage.items.set(
+      SAVE_KEY,
+      JSON.stringify({
+        version: SAVE_VERSION,
+        highScoreXp: 1,
+        bestWave: 1,
+        totalRuns: 1,
+        settings: { masterVolume: 'loud' },
+      }),
+    );
+
+    // Neither a v3 record nor any older shape, so it is discarded whole rather than
+    // half-read. A partially trusted save is worse than none.
+    expect(new SaveStore(storage).load()).toEqual(EMPTY_SAVE);
+  });
+
+  it('rejects a volume outside 0-1 rather than storing it', () => {
+    const storage = new MemoryStorage();
+    storage.items.set(
+      SAVE_KEY,
+      JSON.stringify({
+        version: SAVE_VERSION,
+        highScoreXp: 0,
+        bestWave: 0,
+        totalRuns: 0,
+        settings: { ...DEFAULT_SETTINGS, masterVolume: 4 },
+      }),
+    );
+
+    expect(new SaveStore(storage).load()).toEqual(EMPTY_SAVE);
   });
 });

@@ -32,3 +32,23 @@ export function damageTint(ratio: number, floor: number): number {
 
   return (0xff << 16) | (channel << 8) | channel;
 }
+
+/**
+ * Relative luminance, 0–1, per the WCAG definition.
+ *
+ * Here so the colourblind palette can be *tested* rather than eyeballed. Separating colours
+ * by luminance is what makes them survive every colour deficiency instead of the one they
+ * were drawn against, and a number is the only way to assert that in a test.
+ */
+export function relativeLuminance(color: number): number {
+  const channel = (value: number): number => {
+    const s = value / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  };
+
+  const r = channel((color >> 16) & 0xff);
+  const g = channel((color >> 8) & 0xff);
+  const b = channel(color & 0xff);
+
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}

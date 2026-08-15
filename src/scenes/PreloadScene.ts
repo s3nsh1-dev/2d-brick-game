@@ -1,7 +1,13 @@
 import * as Phaser from 'phaser';
 import { BALANCE } from '../constants/balance';
 import { DataKey, PLAYER_ACTOR_ID, SceneKey, StaticTextureKey } from '../constants/keys';
-import { ANIM_FRAME_COUNT, AnimState, animKey, frameTextureKey } from '../core/animKeys';
+import {
+  ANIM_FRAME_COUNT,
+  AnimState,
+  animKey,
+  frameTextureKey,
+  paletteActorId,
+} from '../core/animKeys';
 import {
   readEnemyDataFromCache,
   readUpgradeDataFromCache,
@@ -62,10 +68,22 @@ export class PreloadScene extends Phaser.Scene {
 
     this.bakeActor(PLAYER_ACTOR_ID, BALANCE.player.size, BALANCE.player.color);
 
-    // One actor per enemy definition, keyed by the definition's id. This loop is the reason
-    // a fourth enemy type needs no code: it bakes and animates whatever `enemies.json` lists.
-    for (const enemy of enemies.enemies) {
-      this.bakeActor(enemy.id, enemy.size, Phaser.Display.Color.HexStringToColor(enemy.color).color);
+    // One actor per enemy definition per palette, keyed by the definition's id. This loop is
+    // the reason a fourth enemy type needs no code: it bakes and animates whatever
+    // `enemies.json` lists, in both colour schemes.
+    //
+    // Two sets rather than one re-tinted at runtime, because `setTint` multiplies — it can
+    // only darken a baked colour, and the colourblind variant has to move colours somewhere
+    // the default cannot reach. Fifteen extra textures of at most 30x30 pixels.
+    for (const [index, enemy] of enemies.enemies.entries()) {
+      const own = Phaser.Display.Color.HexStringToColor(enemy.color).color;
+
+      this.bakeActor(paletteActorId(enemy.id, false), enemy.size, own);
+      this.bakeActor(
+        paletteActorId(enemy.id, true),
+        enemy.size,
+        BALANCE.palette.colourblindEnemies[index] ?? own,
+      );
     }
 
     this.scene.start(SceneKey.MENU);

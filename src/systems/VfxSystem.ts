@@ -6,6 +6,7 @@ import { toCssColor } from '../core/color';
 import type { EventBus, GameEvents } from '../core/EventBus';
 import { clamp } from '../core/math';
 import { ObjectPool } from '../core/ObjectPool';
+import { settings } from '../platform/settings';
 import { FloatingText } from '../entities/FloatingText';
 import { SpawnMarker } from '../entities/SpawnMarker';
 import type { System } from './System';
@@ -58,7 +59,7 @@ export class VfxSystem implements System {
   private readonly handleEnemyDamaged = (x: number, y: number, amount: number): void => {
     if (this.sparksThisFrame < BALANCE.vfx.budget.sparksPerFrame) {
       this.sparksThisFrame += 1;
-      this.hitSpark.explode(BALANCE.vfx.hitSpark.count, x, y);
+      this.hitSpark.explode(this.particles(BALANCE.vfx.hitSpark.count), x, y);
     }
 
     if (this.textsThisFrame < BALANCE.vfx.budget.textsPerFrame) {
@@ -97,25 +98,29 @@ export class VfxSystem implements System {
     }
 
     this.burstsThisFrame += 1;
-    this.deathBurst.explode(BALANCE.vfx.deathBurst.count, x, y);
+    this.deathBurst.explode(this.particles(BALANCE.vfx.deathBurst.count), x, y);
   };
 
   private readonly handleGemCollected = (x: number, y: number): void => {
-    this.pickupSparkle.explode(BALANCE.vfx.pickupSparkle.count, x, y);
+    this.pickupSparkle.explode(this.particles(BALANCE.vfx.pickupSparkle.count), x, y);
   };
 
   // Exempt from the per-frame burst budget: there is at most one of these a wave, and it is
   // the only good news the arena ever produces.
   private readonly handleHealthTaken = (x: number, y: number): void => {
-    this.healBurst.explode(BALANCE.vfx.healBurst.count, x, y);
+    this.healBurst.explode(this.particles(BALANCE.vfx.healBurst.count), x, y);
   };
 
   private readonly handlePlayerDamaged = (x: number, y: number, amount: number): void => {
     const { shake, flash } = BALANCE.vfx;
     const camera = this.scene.cameras.main;
 
-    camera.shake(shake.durationMs, shake.intensity);
-    camera.flash(flash.durationMs, this.flashColor.r, this.flashColor.g, this.flashColor.b);
+    // Invariant 19: everything that moves the screen is reachable from one setting. The
+    // damage number below is not — reduced motion may remove an effect, never information.
+    if (!settings.get().reducedMotion) {
+      camera.shake(shake.durationMs, shake.intensity);
+      camera.flash(flash.durationMs, this.flashColor.r, this.flashColor.g, this.flashColor.b);
+    }
 
     // Exempt from the per-frame text budget. It is bounded by the per-enemy contact interval
     // rather than by how many enemies are on screen, and it is the one number a player must
@@ -231,6 +236,20 @@ export class VfxSystem implements System {
 
     emitter.setDepth(Depth.PARTICLE);
     return emitter;
+  }
+
+  /**
+   * Particle count for one burst, damped when reduced motion is on.
+   *
+   * Damped rather than zeroed: at least one particle still has to say that something
+   * happened. An accessibility option removes motion, not feedback.
+   */
+  private particles(count: number): number {
+    if (!settings.get().reducedMotion) {
+      return count;
+    }
+
+    return Math.max(1, Math.round(count * BALANCE.vfx.reducedMotionParticleScale));
   }
 
   /** A damage number, rounded because a player reading "7.4000001" is a bug report. */

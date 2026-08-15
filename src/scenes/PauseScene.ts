@@ -16,7 +16,14 @@ import { Panel } from '../ui/Panel';
 // it is open, so health, level and the list of upgrades taken are already on screen and
 // undimmed — repeating them here would be two copies of one fact.
 
+/** Phaser names per-key events by suffix. Declared once so a typo is a compile error. */
+const RESUME_KEY = 'keydown-ESC';
+
 export class PauseScene extends Phaser.Scene {
+  private readonly openOptions = (): void => {
+    this.scene.start(SceneKey.OPTIONS, { returnTo: SceneKey.PAUSE });
+  };
+
   private readonly resume = (): void => {
     this.scene.resume(SceneKey.GAME);
     this.scene.stop();
@@ -30,16 +37,19 @@ export class PauseScene extends Phaser.Scene {
     const { width, height } = BALANCE.world;
 
     addScrim(this);
-    new Panel(this, width / 2, height / 2, 460, 220);
+    new Panel(this, width / 2, height / 2 + 4, 460, 300);
 
-    new Label(this, width / 2, height / 2 - 66, 'PAUSED', LabelVariant.TITLE).setOrigin(0.5);
+    new Label(this, width / 2, height / 2 - 84, 'PAUSED', LabelVariant.TITLE).setOrigin(0.5);
 
-    new Button(this, width / 2, height / 2 + 12, BALANCE.ui.button.width, 'RESUME', this.resume);
+    const { button } = BALANCE.ui;
+    new Button(this, width / 2, height / 2, button.width, 'RESUME', this.resume);
+    new Button(this, width / 2, height / 2 + button.height + button.gap, button.width, 'OPTIONS', this.openOptions);
 
-    new Label(this, width / 2, height / 2 + 62, 'or press any key', LabelVariant.SMALL)
+    new Label(this, width / 2, height / 2 + 104, 'escape resumes', LabelVariant.SMALL)
       .setOrigin(0.5);
 
-    // `once`, so the keypress that resumes cannot also be read by the run it resumes into.
-    this.input.keyboard?.once(Phaser.Input.Keyboard.Events.ANY_KEY_DOWN, this.resume);
+    // Only Escape, not any key: this sheet now has buttons worth clicking, and a screen that
+    // exits on every keystroke cannot also be navigated.
+    this.input.keyboard?.once(RESUME_KEY, this.resume);
   }
 }

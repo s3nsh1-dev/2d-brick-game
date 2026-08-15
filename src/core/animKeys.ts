@@ -42,3 +42,15 @@ export function frameTextureKey(actorId: string, state: AnimState, frame: number
 export function animKey(actorId: string, state: AnimState): string {
   return `${actorId}__${state}`;
 }
+
+/**
+ * The actor id an enemy's frames are baked under for the active palette.
+ *
+ * Two full sets of frames are baked at boot rather than one set re-tinted at runtime,
+ * because `setTint` multiplies: it can only ever darken a baked colour, and the whole point
+ * of the colourblind variant is to move colours somewhere the default palette cannot reach.
+ * Frames are a few hundred bytes each; a second set costs nothing worth counting.
+ */
+export function paletteActorId(actorId: string, colourblind: boolean): string {
+  return colourblind ? `${actorId}__cb` : actorId;
+}

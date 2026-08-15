@@ -10,6 +10,7 @@ import {
   type ToneSpec,
 } from '../core/audioSynth';
 import type { EventBus, GameEvents } from '../core/EventBus';
+import { settings } from '../platform/settings';
 import type { System } from './System';
 
 // Every sound in the game. Subscribes to the bus and never calls into gameplay — deleting
@@ -80,7 +81,7 @@ export class AudioSystem implements System {
 
   /** Invariant 12: every Sound instance in the game is created here, exactly once. */
   private readonly handleDecoded = (): void => {
-    const { sfxVolume, musicVolume } = BALANCE.audio;
+    const { sfxVolume, musicVolume } = settings.get();
 
     for (const key of SFX_KEYS) {
       const voice = this.voices.get(key);
@@ -99,11 +100,15 @@ export class AudioSystem implements System {
     this.music?.play();
   };
 
+  private readonly handleOptionsChanged = (): void => {
+    this.applyVolumes();
+  };
+
   public constructor(
     private readonly scene: Phaser.Scene,
     private readonly bus: EventBus<GameEvents>,
   ) {
-    this.scene.sound.volume = BALANCE.audio.masterVolume;
+    this.scene.sound.volume = settings.get().masterVolume;
 
     for (const key of SFX_KEYS) {
       this.voices.set(key, { sound: undefined, cooldown: 0 });
@@ -120,6 +125,7 @@ export class AudioSystem implements System {
     this.bus.on('gem:collected', this.handleGemCollected);
     this.bus.on('pickup:health', this.handleHealthTaken);
     this.bus.on('level:up', this.handleLevelUp);
+    this.bus.on('options:changed', this.handleOptionsChanged);
   }
 
   public update(dt: number): void {
@@ -138,6 +144,7 @@ export class AudioSystem implements System {
     this.bus.off('gem:collected', this.handleGemCollected);
     this.bus.off('pickup:health', this.handleHealthTaken);
     this.bus.off('level:up', this.handleLevelUp);
+    this.bus.off('options:changed', this.handleOptionsChanged);
 
     // The SoundManager is global and outlives this scene, so a listener left on it and a
     // sound left playing both survive a restart. Neither is the manager's job to clean up.
@@ -198,6 +205,30 @@ export class AudioSystem implements System {
 
     this.webAudio.once(Phaser.Sound.Events.DECODED_ALL, this.handleDecoded);
     this.webAudio.decodeAudio(pending);
+  }
+
+  /**
+   * Pushes the current volumes onto every Sound this system owns.
+   *
+   * `setVolume` is declared on the concrete sound classes, not on `BaseSound`, which is what
+   * `sound.add` returns — hence the `instanceof` rather than a cast. Every sound here is a
+   * WebAudio one by construction: `decode` returns early on any other backend, so nothing is
+   * ever created to adjust.
+   */
+  private applyVolumes(): void {
+    const { masterVolume, sfxVolume, musicVolume } = settings.get();
+
+    this.scene.sound.volume = masterVolume;
+
+    for (const voice of this.voices.values()) {
+      if (voice.sound instanceof Phaser.Sound.WebAudioSound) {
+        voice.sound.setVolume(sfxVolume);
+      }
+    }
+
+    if (this.music instanceof Phaser.Sound.WebAudioSound) {
+      this.music.setVolume(musicVolume);
+    }
   }
 
   private startMusic(): void {

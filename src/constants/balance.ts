@@ -53,6 +53,21 @@ const PALETTE = {
    */
   health: 0x9dffc6,
 
+  /**
+   * The colourblind variant of the enemy colours, indexed by the order the types appear in
+   * `enemies.json`. Nothing here replaces the UI palette — the axis that needed fixing is
+   * the enemies, which separate on red/pink/purple by default and therefore not at all for
+   * the most common deficiency.
+   *
+   * These separate on *luminance* first (0.53 / 0.90 / 0.16 relative) and hue second, so
+   * they survive every deficiency rather than just the one they were drawn for. Size already
+   * separates the three types too; colour is the second cue, not the only one.
+   *
+   * Indexed rather than keyed by id, so it stays in `constants/` without naming content.
+   * A type without an entry keeps the colour `enemies.json` gives it.
+   */
+  colourblindEnemies: [0xff7a1a, 0xf2f2f8, 0x2f3bd6],
+
   /** Particles are baked white and tinted, so this is the one texture colour. */
   spark: 0xffffff,
   deathBurst: 0xe4645a,
@@ -330,6 +345,15 @@ export const BALANCE = {
     enemyDamageTintFloor: 0.34,
 
     /**
+     * Particle counts are multiplied by this when reduced motion is on.
+     *
+     * Damped rather than removed: an effect that vanishes entirely takes its information
+     * with it, and a player still needs to see that a hit landed. What reduced motion
+     * removes outright is the things that move the *screen* — shake, flash and hit-stop.
+     */
+    reducedMotionParticleScale: 0.35,
+
+    /**
      * What one frame is allowed to draw. Stage 2's effects were built against a handful of
      * enemies; at wave 8 a single frame can contain forty deaths, and forty bursts is both
      * unreadable and expensive.
@@ -468,6 +492,15 @@ export const BALANCE = {
       drainPerSecond: 0.9,
       /** How long the bar stays flushed red after a hit. */
       flashSeconds: 0.28,
+    },
+
+    options: {
+      rowHeight: 54,
+      labelX: 300,
+      controlX: 700,
+      controlWidth: 300,
+      /** Volume steps, as a fraction. Ten notches is enough and reads cleanly as a bar. */
+      volumeStep: 0.1,
     },
 
     upgradeList: {

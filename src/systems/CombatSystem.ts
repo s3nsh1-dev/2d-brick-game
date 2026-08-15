@@ -3,6 +3,7 @@ import { StatId } from '../constants/stats';
 import type { EventBus, GameEvents } from '../core/EventBus';
 import { nearest, scratchA, setLength } from '../core/math';
 import type { ObjectPool } from '../core/ObjectPool';
+import { settings } from '../platform/settings';
 import type { Enemy } from '../entities/Enemy';
 import type { Player } from '../entities/Player';
 import type { Projectile } from '../entities/Projectile';
@@ -95,7 +96,15 @@ export class CombatSystem implements System {
     }
 
     // Coalesced with `max`, not summed: forty enemies dying in one frame is one freeze.
-    this.hitStopRemaining = Math.max(this.hitStopRemaining, BALANCE.combat.hitStopSeconds);
+    //
+    // This is the one place a Stage 3 accessibility option reaches into a gameplay file, and
+    // it is deliberate: hit-stop stops the whole simulation, so it is motion by any honest
+    // reading. Turning it off speeds the game up uniformly — enemies, projectiles and player
+    // alike — so it removes an effect without handing anyone an advantage. It is off only
+    // when the player asks, because the default has to be the tuned game.
+    if (!settings.get().reducedMotion) {
+      this.hitStopRemaining = Math.max(this.hitStopRemaining, BALANCE.combat.hitStopSeconds);
+    }
 
     const deathX = enemy.x;
     const deathY = enemy.y;
