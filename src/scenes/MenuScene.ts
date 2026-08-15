@@ -53,10 +53,15 @@ export class MenuScene extends Phaser.Scene {
     ).setOrigin(0.5);
     new Label(this, width / 2, height / 2 - 2, 'ESC pauses.', LabelVariant.DIM).setOrigin(0.5);
 
-    new Button(this, width / 2, height / 2 + 48, button.width, 'BEGIN', this.begin);
-    new Button(this, width / 2, height / 2 + 48 + button.height + button.gap, button.width, 'OPTIONS', this.openOptions);
+    const beginY = height / 2 + 48;
+    const optionsY = beginY + button.height + button.gap;
 
-    new Label(this, width / 2, height / 2 + 130, 'or press any key to begin', LabelVariant.SMALL)
+    new Button(this, width / 2, beginY, button.width, 'BEGIN', this.begin);
+    new Button(this, width / 2, optionsY, button.width, 'OPTIONS', this.openOptions);
+
+    // Measured off the last button rather than off the panel centre: a hint placed by its own
+    // offset landed on the OPTIONS button's lower border the moment a second button existed.
+    new Label(this, width / 2, optionsY + button.height, 'or press any key to begin', LabelVariant.SMALL)
       .setOrigin(0.5);
 
     this.showRecords();
