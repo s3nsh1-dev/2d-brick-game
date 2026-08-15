@@ -1,7 +1,6 @@
 import * as Phaser from 'phaser';
 import { BALANCE } from '../constants/balance';
-import { Depth } from '../constants/depths';
-import { SceneKey, StaticTextureKey } from '../constants/keys';
+import { SceneKey } from '../constants/keys';
 import { eventBus } from '../core/EventBus';
 import { ObjectPool } from '../core/ObjectPool';
 import { getEnemyData, getUpgradeData, getWaveData } from '../data/schema';
@@ -16,6 +15,8 @@ import { ProgressionSystem } from '../systems/ProgressionSystem';
 import { SpawnSystem } from '../systems/SpawnSystem';
 import type { System } from '../systems/System';
 import { VfxSystem } from '../systems/VfxSystem';
+import { addArenaBackdrop } from '../ui/backdrop';
+import { fadeIn, fadeToScene } from '../ui/transitions';
 
 /** Phaser names per-key events by suffix. Declared once so a typo is a compile error. */
 const PAUSE_KEY = 'keydown-ESC';
@@ -61,9 +62,27 @@ export class GameScene extends Phaser.Scene {
     }
   };
 
+  /**
+   * The run's picks, in the order taken, for the summary screen to report.
+   *
+   * Collected here rather than sent through `run:ended` because bus payloads are positional
+   * primitives (an array payload would allocate), and because this scene already forwards
+   * the run's other totals into the scene that displays them. It decides nothing with the
+   * list — it carries it.
+   */
+  private readonly takenUpgrades: string[] = [];
+
+  private readonly handleUpgradeChosen = (upgradeId: string): void => {
+    this.takenUpgrades.push(upgradeId);
+  };
+
   private readonly handleRunEnded = (waveReached: number, xpTotal: number): void => {
+    // Copied, not passed: `shutdown` empties this array, and it runs before the next scene
+    // reads its data.
+    const upgrades = [...this.takenUpgrades];
+
     this.scene.stop(SceneKey.HUD);
-    this.scene.start(SceneKey.GAME_OVER, { waveReached, xpTotal });
+    fadeToScene(this, SceneKey.GAME_OVER, { waveReached, xpTotal, upgrades });
   };
 
   /**
@@ -81,6 +100,7 @@ export class GameScene extends Phaser.Scene {
   ): void => {
     this.scene.pause();
     this.scene.launch(SceneKey.UPGRADE, { level, offers: [offerA, offerB, offerC] });
+    this.liftHud();
   };
 
   /**
@@ -95,7 +115,20 @@ export class GameScene extends Phaser.Scene {
 
     this.scene.pause();
     this.scene.launch(SceneKey.PAUSE);
+    this.liftHud();
   };
+
+  /**
+   * Puts the HUD above the sheet that was just launched over the run.
+   *
+   * A launched scene renders on top of every scene started before it, so without this the
+   * scrim dims the player's own health and upgrade list along with the arena. Those are
+   * exactly the numbers worth reading while a level-up menu is open, and it is why neither
+   * sheet repeats them.
+   */
+  private liftHud(): void {
+    this.scene.bringToTop(SceneKey.HUD);
+  }
 
   /**
    * Registered against SHUTDOWN. Destroys the systems, empties the pools and clears the
@@ -118,6 +151,10 @@ export class GameScene extends Phaser.Scene {
     this.projectiles.releaseAll();
     this.gems.releaseAll();
 
+    // Emptied for the same reason the system array is: Phaser reuses the scene instance, so
+    // last run's picks would otherwise appear on the next run's summary.
+    this.takenUpgrades.length = 0;
+
     this.input.keyboard?.off(PAUSE_KEY, this.handlePauseRequested);
 
     this.scene.stop(SceneKey.HUD);
@@ -136,8 +173,9 @@ export class GameScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, width, height);
 
     // The arena is one texture composited at boot, not a stack of live shapes. Placed before
-    // anything else so the display list order matches the depth order for free.
-    this.add.image(0, 0, StaticTextureKey.ARENA).setOrigin(0).setDepth(Depth.BACKGROUND);
+    // anything else so the display list order matches the depth order for free, and through
+    // the kit so the menu and the summary stand on it the same way this scene does.
+    addArenaBackdrop(this);
 
     this.player = new Player(this, width / 2, height / 2);
 
@@ -209,12 +247,15 @@ export class GameScene extends Phaser.Scene {
 
     eventBus.on('run:ended', this.handleRunEnded);
     eventBus.on('level:up', this.handleLevelUp);
+    eventBus.on('upgrade:chosen', this.handleUpgradeChosen);
 
     this.input.keyboard?.on(PAUSE_KEY, this.handlePauseRequested);
 
     this.scene.launch(SceneKey.HUD);
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.shutdown);
+
+    fadeIn(this);
   }
 
   /**

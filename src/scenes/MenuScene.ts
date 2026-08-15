@@ -1,16 +1,25 @@
 import * as Phaser from 'phaser';
 import { BALANCE } from '../constants/balance';
-import { Depth } from '../constants/depths';
 import { SceneKey } from '../constants/keys';
-import { toCssColor } from '../core/color';
+import { EMPTY_SAVE, type SaveData } from '../core/SaveStore';
+import { saveStore } from '../platform/storage';
+import { addArenaBackdrop } from '../ui/backdrop';
+import { Button } from '../ui/Button';
+import { Label, LabelVariant } from '../ui/Label';
+import { Panel } from '../ui/Panel';
+import { fadeIn, fadeToScene } from '../ui/transitions';
 
-// Title card. Any key or click starts a run.
+// Title card. It stands on the same arena the run is played on, which is most of what makes
+// the menu and the game read as one product rather than two screens sharing a font.
+//
+// It also reports the records, because a title screen that knows nothing about you is the
+// least interesting screen a game can open with.
 
 export class MenuScene extends Phaser.Scene {
-  // An arrow field rather than a method: Phaser's `once` takes a context argument, but a
-  // bound function is what makes that visible to the type system instead of implied.
+  private records: SaveData = EMPTY_SAVE;
+
   private readonly begin = (): void => {
-    this.scene.start(SceneKey.GAME);
+    fadeToScene(this, SceneKey.GAME);
   };
 
   public constructor() {
@@ -19,36 +28,52 @@ export class MenuScene extends Phaser.Scene {
 
   public create(): void {
     const { width, height } = BALANCE.world;
-    const { font } = BALANCE.ui;
+    const { button } = BALANCE.ui;
 
-    this.add
-      .text(width / 2, height / 2 - 70, 'ARENA', {
-        fontFamily: font.family,
-        fontSize: font.titleSize,
-        color: toCssColor(BALANCE.palette.uiText),
-      })
-      .setOrigin(0.5)
-      .setDepth(Depth.UI);
+    this.records = saveStore.load();
 
-    this.add
-      .text(width / 2, height / 2 + 10, 'WASD to move. You fire on your own.', {
-        fontFamily: font.family,
-        fontSize: font.bodySize,
-        color: toCssColor(BALANCE.palette.uiText),
-      })
-      .setOrigin(0.5)
-      .setDepth(Depth.UI);
+    addArenaBackdrop(this);
 
-    this.add
-      .text(width / 2, height / 2 + 60, 'press any key to begin', {
-        fontFamily: font.family,
-        fontSize: font.bodySize,
-        color: toCssColor(BALANCE.palette.uiDim),
-      })
-      .setOrigin(0.5)
-      .setDepth(Depth.UI);
+    new Panel(this, width / 2, height / 2 - 24, 580, 306);
 
+    new Label(this, width / 2, height / 2 - 136, 'ARENA', LabelVariant.TITLE).setOrigin(0.5);
+    new Label(this, width / 2, height / 2 - 82, 'survive every wave', LabelVariant.ACCENT)
+      .setOrigin(0.5);
+
+    new Label(
+      this,
+      width / 2,
+      height / 2 - 32,
+      'WASD to move.  You fire on your own.',
+      LabelVariant.BODY,
+    ).setOrigin(0.5);
+    new Label(this, width / 2, height / 2 - 2, 'ESC pauses.', LabelVariant.DIM).setOrigin(0.5);
+
+    new Button(this, width / 2, height / 2 + 56, button.width, 'BEGIN', this.begin);
+
+    new Label(this, width / 2, height / 2 + 96, 'or press any key', LabelVariant.SMALL)
+      .setOrigin(0.5);
+
+    this.showRecords();
+
+    // `once`, so the keypress that starts a run cannot also be read by the run itself.
     this.input.keyboard?.once(Phaser.Input.Keyboard.Events.ANY_KEY_DOWN, this.begin);
-    this.input.once(Phaser.Input.Events.POINTER_DOWN, this.begin);
+
+    fadeIn(this);
+  }
+
+  /** Nothing at all on a first run, rather than three zeroes pretending to be a history. */
+  private showRecords(): void {
+    if (this.records.totalRuns === 0) {
+      return;
+    }
+
+    const { width, height } = BALANCE.world;
+    const summary =
+      `best wave ${String(this.records.bestWave)}` +
+      `   ·   high score ${String(this.records.highScoreXp)} xp` +
+      `   ·   ${String(this.records.totalRuns)} runs`;
+
+    new Label(this, width / 2, height - 54, summary, LabelVariant.SMALL).setOrigin(0.5);
   }
 }

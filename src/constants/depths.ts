@@ -10,6 +10,10 @@ export const Depth = {
   // the HUD so it never obscures a number the player needs.
   PARTICLE: 50,
   FLOATING_TEXT: 60,
+  /** The sheet that dims a paused run. Above the arena, below the screen laid over it. */
+  SCRIM: 80,
+  /** Panels and bars: the furniture UI text sits on. */
+  PANEL: 90,
   UI: 100,
 } as const;
 

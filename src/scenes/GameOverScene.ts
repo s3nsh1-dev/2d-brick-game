@@ -1,36 +1,33 @@
 import * as Phaser from 'phaser';
 import { BALANCE } from '../constants/balance';
-import { Depth } from '../constants/depths';
 import { SceneKey } from '../constants/keys';
-import { toCssColor } from '../core/color';
-import { EMPTY_SAVE, SaveStore, type SaveData, type StorageAdapter } from '../core/SaveStore';
+import { EMPTY_SAVE, type SaveData } from '../core/SaveStore';
+import { levelForXp } from '../core/xpCurve';
+import { getUpgradeData } from '../data/schema';
+import { saveStore } from '../platform/storage';
+import { addArenaBackdrop } from '../ui/backdrop';
+import { Button } from '../ui/Button';
+import { Label, LabelVariant } from '../ui/Label';
+import { Panel } from '../ui/Panel';
+import { fadeIn, fadeToScene } from '../ui/transitions';
+import { UpgradeList } from '../ui/UpgradeList';
 
 export interface GameOverData {
   readonly waveReached: number;
   readonly xpTotal: number;
-}
-
-/**
- * The browser's storage, or nothing when it is unavailable.
- *
- * A browser with storage disabled throws on the property access itself, not on the first
- * call, which is why this is wrapped rather than passed straight through. `SaveStore` lives
- * in `core/` and may not name `window`; naming it here is the injection point.
- */
-function browserStorage(): StorageAdapter | undefined {
-  try {
-    return window.localStorage;
-  } catch {
-    return undefined;
-  }
+  /** Every upgrade the run took, in the order taken. Collected by `GameScene`. */
+  readonly upgrades: readonly string[];
 }
 
 // End of run. Receives the run's own numbers through scene data rather than the bus, because
 // by the time it exists the bus has been cleared and the run it is reporting on is gone.
 //
 // It is also where a run is folded into the permanent record. That belongs here rather than
-// in GameScene because this is the moment the run is definitively over, and because a scene
-// that is already displaying the result is the one place the totals are worth reading back.
+// in GameScene because this is the moment the run is definitively over.
+//
+// The level is not carried in the payload: it is `levelForXp` of the XP total, the same pure
+// function the HUD and `ProgressionSystem` read it through. A number that can be derived
+// exactly should not also be transported, or the two copies can disagree.
 //
 // `Phaser.Scene` does not declare `init`, so typing the payload here needs no cast and no
 // `override` — the engine calls whatever `init` it finds.
@@ -38,10 +35,13 @@ function browserStorage(): StorageAdapter | undefined {
 export class GameOverScene extends Phaser.Scene {
   private waveReached = 0;
   private xpTotal = 0;
+  private upgrades: readonly string[] = [];
+
   private records: SaveData = EMPTY_SAVE;
+  private previous: SaveData = EMPTY_SAVE;
 
   private readonly restart = (): void => {
-    this.scene.start(SceneKey.GAME);
+    fadeToScene(this, SceneKey.GAME);
   };
 
   public constructor() {
@@ -51,65 +51,102 @@ export class GameOverScene extends Phaser.Scene {
   public init(data: GameOverData): void {
     this.waveReached = data.waveReached;
     this.xpTotal = data.xpTotal;
+    this.upgrades = data.upgrades;
 
-    // Recorded in `init` rather than `create` so the totals below are already up to date,
-    // and so a run counts even if drawing this screen somehow fails.
-    this.records = new SaveStore(browserStorage()).recordRun(data.waveReached, data.xpTotal);
+    // Read before writing: `recordRun` returns the *merged* record, which cannot answer
+    // "did this run beat the last one?" — the only question worth putting on this screen.
+    this.previous = saveStore.load();
+    this.records = saveStore.recordRun(data.waveReached, data.xpTotal);
   }
 
   public create(): void {
     const { width, height } = BALANCE.world;
-    const { font } = BALANCE.ui;
 
-    this.add
-      .text(width / 2, height / 2 - 70, 'RUN OVER', {
-        fontFamily: font.family,
-        fontSize: font.titleSize,
-        color: toCssColor(BALANCE.palette.uiText),
-      })
-      .setOrigin(0.5)
-      .setDepth(Depth.UI);
+    addArenaBackdrop(this);
+    new Panel(this, width / 2, height / 2 + 6, 620, 428);
 
-    this.add
-      .text(
-        width / 2,
-        height / 2 + 10,
-        `reached wave ${String(this.waveReached)}  ·  ${String(this.xpTotal)} xp`,
-        {
-          fontFamily: font.family,
-          fontSize: font.bodySize,
-          color: toCssColor(BALANCE.palette.uiText),
-        },
-      )
-      .setOrigin(0.5)
-      .setDepth(Depth.UI);
+    new Label(this, width / 2, height / 2 - 172, 'RUN OVER', LabelVariant.TITLE).setOrigin(0.5);
 
-    this.add
-      .text(
-        width / 2,
-        height / 2 + 48,
-        `best wave ${String(this.records.bestWave)}  ·  ` +
-          `high score ${String(this.records.highScoreXp)} xp  ·  ` +
-          `run ${String(this.records.totalRuns)}`,
-        {
-          fontFamily: font.family,
-          fontSize: font.bodySize,
-          color: toCssColor(BALANCE.palette.uiDim),
-        },
-      )
-      .setOrigin(0.5)
-      .setDepth(Depth.UI);
+    this.showRun();
+    this.showPersonalBest();
+    this.showUpgrades();
 
-    this.add
-      .text(width / 2, height / 2 + 96, 'press any key to run again', {
-        fontFamily: font.family,
-        fontSize: font.bodySize,
-        color: toCssColor(BALANCE.palette.uiDim),
-      })
-      .setOrigin(0.5)
-      .setDepth(Depth.UI);
+    new Label(
+      this,
+      width / 2,
+      height / 2 + 152,
+      `best wave ${String(this.records.bestWave)}` +
+        `   ·   high score ${String(this.records.highScoreXp)} xp` +
+        `   ·   ${String(this.records.totalRuns)} runs`,
+      LabelVariant.SMALL,
+    ).setOrigin(0.5);
+
+    new Button(this, width / 2, height / 2 + 192, BALANCE.ui.button.width, 'RUN AGAIN', this.restart);
+    new Label(this, width / 2, height - 42, 'or press any key', LabelVariant.SMALL).setOrigin(0.5);
 
     this.input.keyboard?.once(Phaser.Input.Keyboard.Events.ANY_KEY_DOWN, this.restart);
-    this.input.once(Phaser.Input.Events.POINTER_DOWN, this.restart);
+
+    fadeIn(this);
+  }
+
+  /** The three numbers the run produced, as headings rather than a sentence. */
+  private showRun(): void {
+    const { width, height } = BALANCE.world;
+    const level = levelForXp(this.xpTotal, BALANCE.progression.xp);
+
+    const columns: readonly (readonly [string, string])[] = [
+      ['WAVE', String(this.waveReached)],
+      ['LEVEL', String(level)],
+      ['XP', String(this.xpTotal)],
+    ];
+
+    const spacing = 180;
+    const left = width / 2 - (spacing * (columns.length - 1)) / 2;
+
+    for (const [index, [caption, value]] of columns.entries()) {
+      const x = left + spacing * index;
+      // The caption clears the digits below it: a TITLE label is 46px tall and centred, so
+      // anything inside ~26px of it collides with the number rather than labelling it.
+      new Label(this, x, height / 2 - 116, caption, LabelVariant.SMALL).setOrigin(0.5);
+      new Label(this, x, height / 2 - 80, value, LabelVariant.TITLE).setOrigin(0.5);
+    }
+  }
+
+  /** Unmissable when it happens, and completely absent when it does not. */
+  private showPersonalBest(): void {
+    const { width, height } = BALANCE.world;
+    const beatWave = this.waveReached > this.previous.bestWave;
+    const beatScore = this.xpTotal > this.previous.highScoreXp;
+
+    if (!beatWave && !beatScore) {
+      return;
+    }
+
+    const what = beatWave && beatScore ? 'WAVE AND SCORE' : beatWave ? 'FURTHEST WAVE' : 'HIGH SCORE';
+
+    new Panel(this, width / 2, height / 2 - 20, 380, 36, BALANCE.palette.uiAccent);
+    new Label(this, width / 2, height / 2 - 20, `NEW BEST — ${what}`, LabelVariant.HEADING)
+      .setOrigin(0.5)
+      .setVariantColor(BALANCE.palette.backdrop);
+  }
+
+  private showUpgrades(): void {
+    const { width, height } = BALANCE.world;
+
+    new Label(this, width / 2, height / 2 + 20, 'PICKED UP', LabelVariant.SMALL).setOrigin(0.5);
+
+    const list = new UpgradeList(
+      this,
+      width / 2,
+      height / 2 + 44,
+      BALANCE.ui.upgradeList.capacity,
+    );
+    list.setOrigin(0.5);
+    list.setFromIds(this.upgrades, getUpgradeData(this.registry));
+
+    if (list.isEmpty) {
+      new Label(this, width / 2, height / 2 + 44, 'nothing — the run ended early', LabelVariant.SMALL)
+        .setOrigin(0.5);
+    }
   }
 }

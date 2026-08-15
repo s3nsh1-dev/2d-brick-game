@@ -341,28 +341,63 @@ export const BALANCE = {
 
   ui: {
     margin: 18,
-    hpBar: {
-      width: 280,
-      height: 18,
-      backgroundColor: PALETTE.uiPanelEdge,
-      fillColor: PALETTE.playerBody,
-    },
+    /** Alpha of the sheet a paused run is dimmed by. Dims it; never hides it. */
+    scrimAlpha: 0.84,
+
     font: {
       family: 'monospace',
-      bodySize: '18px',
       titleSize: '46px',
+      headingSize: '24px',
+      bodySize: '18px',
+      smallSize: '14px',
+    },
+
+    panel: {
+      borderWidth: 2,
+      // Not quite opaque, so a panel over the arena still admits that the arena is there.
+      fillAlpha: 0.94,
+    },
+
+    button: {
+      height: 46,
+      width: 260,
+      gap: 14,
+    },
+
+    transition: {
+      // Short on both sides. 200ms reads as a cut with weight; 400ms reads as waiting, and
+      // the player pays it twice on every restart.
+      inMs: 220,
+      outMs: 200,
+    },
+
+    hud: {
+      barWidth: 260,
+      barHeight: 16,
+      /** Gap between the health bar and the experience bar under it. */
+      rowGap: 26,
+      /**
+       * How fast the health bar catches up with the number, in bar-fractions per second.
+       * A hit should read as a drain rather than as a jump, without lagging far enough
+       * behind that the bar disagrees with the digits.
+       */
+      drainPerSecond: 0.9,
+      /** How long the bar stays flushed red after a hit. */
+      flashSeconds: 0.28,
+    },
+
+    upgradeList: {
+      rowHeight: 18,
+      /** Every upgrade in `upgrades.json` can be taken, so the list is never longer. */
+      capacity: 6,
     },
 
     upgrade: {
-      /** Alpha of the sheet over the frozen run. Dims it; never hides it. */
-      dim: 0.82,
       card: {
-        width: 260,
-        height: 190,
+        width: 262,
+        height: 196,
         gap: 34,
-        backgroundColor: PALETTE.uiPanel,
-        hoverColor: PALETTE.uiPanelHover,
-        borderColor: PALETTE.uiAccent,
+        padding: 16,
         borderWidth: 2,
       },
     },

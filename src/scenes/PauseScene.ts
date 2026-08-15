@@ -1,14 +1,20 @@
 import * as Phaser from 'phaser';
 import { BALANCE } from '../constants/balance';
-import { Depth } from '../constants/depths';
 import { SceneKey } from '../constants/keys';
-import { toCssColor } from '../core/color';
+import { addScrim } from '../ui/backdrop';
+import { Button } from '../ui/Button';
+import { Label, LabelVariant } from '../ui/Label';
+import { Panel } from '../ui/Panel';
 
 // A held breath. Like `UpgradeScene`, this layers over a *paused* GameScene rather than
-// replacing it, so the arena stays on screen behind the text.
+// replacing it, so the arena stays on screen behind the sheet.
 //
 // It resumes the run itself for the same reason the upgrade menu does: GameScene is paused,
 // so it cannot act on any signal telling it to wake up.
+//
+// It shows no run statistics, deliberately. GameScene lifts the HUD above this scene while
+// it is open, so health, level and the list of upgrades taken are already on screen and
+// undimmed — repeating them here would be two copies of one fact.
 
 export class PauseScene extends Phaser.Scene {
   private readonly resume = (): void => {
@@ -22,33 +28,18 @@ export class PauseScene extends Phaser.Scene {
 
   public create(): void {
     const { width, height } = BALANCE.world;
-    const { font } = BALANCE.ui;
 
-    this.add
-      .rectangle(0, 0, width, height, BALANCE.world.backgroundColor, BALANCE.ui.upgrade.dim)
-      .setOrigin(0)
-      .setDepth(Depth.UI);
+    addScrim(this);
+    new Panel(this, width / 2, height / 2, 460, 220);
 
-    this.add
-      .text(width / 2, height / 2 - 24, 'PAUSED', {
-        fontFamily: font.family,
-        fontSize: font.titleSize,
-        color: toCssColor(BALANCE.palette.uiText),
-      })
-      .setOrigin(0.5)
-      .setDepth(Depth.UI);
+    new Label(this, width / 2, height / 2 - 66, 'PAUSED', LabelVariant.TITLE).setOrigin(0.5);
 
-    this.add
-      .text(width / 2, height / 2 + 34, 'press any key to resume', {
-        fontFamily: font.family,
-        fontSize: font.bodySize,
-        color: toCssColor(BALANCE.palette.uiDim),
-      })
-      .setOrigin(0.5)
-      .setDepth(Depth.UI);
+    new Button(this, width / 2, height / 2 + 12, BALANCE.ui.button.width, 'RESUME', this.resume);
 
-    // `once`, so the keypress that resumes cannot also be read by whatever comes next.
+    new Label(this, width / 2, height / 2 + 62, 'or press any key', LabelVariant.SMALL)
+      .setOrigin(0.5);
+
+    // `once`, so the keypress that resumes cannot also be read by the run it resumes into.
     this.input.keyboard?.once(Phaser.Input.Keyboard.Events.ANY_KEY_DOWN, this.resume);
-    this.input.once(Phaser.Input.Events.POINTER_DOWN, this.resume);
   }
 }
