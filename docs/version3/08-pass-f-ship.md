@@ -56,7 +56,8 @@ recorded exception and it is unavoidable — the page has to paint before any Ja
 - `npm run preview` — played end to end, menu → run → level-up → pause → options → death →
   summary → restart. Console empty except Phaser's own version banner, which is a `log`.
 - **Small-viewport check.** The config is `Scale.FIT` with `CENTER_BOTH` and had never been
-  checked against a laptop-sized window. It letterboxes correctly: the arena keeps its aspect
+  checked against a laptop-sized window. Verified at 1280×620, 1024×768 and 860×560 — a short
+  window, a 4:3 one and a small one. It letterboxes correctly: the arena keeps its aspect
   ratio, centres, and the backdrop fills the bars — which works because the backdrop colour and
   the page background are the same palette entry, so the letterbox is invisible rather than
   black-on-dark-blue.
