@@ -35,6 +35,10 @@ node_modules/.vitest
 .DS_Store
 Thumbs.db
 
+# Browser-test artefacts. Verification screenshots and page snapshots are worth taking and
+# never worth keeping — the ones that document something live in docs/screenshots/.
+.playwright-mcp/
+
 # Misc
 .cache/
 .eslintcache
