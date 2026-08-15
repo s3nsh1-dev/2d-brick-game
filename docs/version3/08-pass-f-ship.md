@@ -55,14 +55,36 @@ recorded exception and it is unavoidable — the page has to paint before any Ja
 - `npm run build` — warning-free. 1,502.82 kB raw, **394.14 kB gzip**, one chunk.
 - `npm run preview` — played end to end, menu → run → level-up → pause → options → death →
   summary → restart. Console empty except Phaser's own version banner, which is a `log`.
-- **Small-viewport check.** The config is `Scale.FIT` with `CENTER_BOTH` and had never been
-  checked against a laptop-sized window. Verified at 1280×620, 1024×768 and 860×560 — a short
-  window, a 4:3 one and a small one. It letterboxes correctly: the arena keeps its aspect
+- **Small-viewport check.** The config is `Scale.FIT` and had never been checked against a
+  laptop-sized window. Verified at 1280×620, 1024×768 and 860×560 — a short window, a 4:3 one
+  and a small one. It letterboxes correctly: the arena keeps its aspect
   ratio, centres, and the backdrop fills the bars — which works because the backdrop colour and
   the page background are the same palette entry, so the letterbox is invisible rather than
   black-on-dark-blue.
 
   ![The game letterboxed in a short viewport](../screenshots/letterbox.png)
+
+### The centring moved out of Phaser and into CSS
+
+Reported after the stage closed, and worth recording because the check above did not catch it:
+on a real screen the canvas landed against the **top-left corner** instead of centring.
+
+`Scale.CENTER_BOTH` centres by measuring the parent element and writing `marginLeft` and
+`marginTop` onto the canvas. That arithmetic is right only when the parent bounds it measured
+and the canvas's own CSS size agree, and they can disagree at a device pixel ratio above 1 or
+under browser zoom — neither of which a headless browser at DPR 1 reproduces, which is exactly
+why eight window sizes all passed and a laptop still failed.
+
+The fix is to stop doing the arithmetic: `#game` is a flex container that centres its child,
+and the config is `NO_CENTER` so the scale manager does not also write margins. Whatever size
+Phaser gives the canvas, the browser places it. `#game canvas { display: block }` came with it
+— an inline canvas sits on a text baseline and carries descender space beneath it, which is
+enough to letterbox a window that should fit exactly.
+
+**The lesson is about the check, not the bug.** "Verified at eight window sizes" was true and
+still missed a whole class of failure, because every one of those sizes shared the one variable
+that mattered. A verification environment that differs from the target in a single invisible
+respect will pass every case you can think of.
 
 ---
 

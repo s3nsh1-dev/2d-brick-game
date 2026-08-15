@@ -77,7 +77,9 @@ Measured in the running game rather than asserted:
 - A **v2 save migrated to v3** in a real browser, arriving with every accessibility option off.
 - The colourblind enemy colours separate at relative luminance **0.53 / 0.90 / 0.16**, asserted
   in a unit test rather than eyeballed.
-- The game scales correctly at a small laptop viewport (1280×720 `Scale.FIT` + `CENTER_BOTH`).
+- The game scales correctly and stays centred at every window shape tested — 1920×1080,
+  1600×1000, 1500×1000, 1300×740, 1024×768, 860×560, 2000×700 and 800×1200 — with equal
+  letterbox bands and no page scroll.
 
 And the mechanical evidence that invariant 16 held, which matters more than any of the above:
 

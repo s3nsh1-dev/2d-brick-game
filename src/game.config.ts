@@ -18,8 +18,17 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
   parent: 'game',
   backgroundColor: BALANCE.world.backgroundColor,
   scale: {
+    // FIT scales the 1280x720 world to the largest size that fits the window, keeping its
+    // aspect ratio. The ratio is not negotiable: the arena *is* the viewport — the wall the
+    // player reads as the world boundary is the screen edge — so stretching would distort
+    // the art and resizing the world would change how far a player can kite, which is
+    // gameplay (invariant 16).
+    //
+    // NO_CENTER because `index.html` centres the canvas with flexbox instead. See the
+    // comment there; the short version is that the scale manager's margin arithmetic can
+    // disagree with the canvas's CSS size at a device pixel ratio above 1.
     mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH,
+    autoCenter: Phaser.Scale.NO_CENTER,
     width: BALANCE.world.width,
     height: BALANCE.world.height,
   },
