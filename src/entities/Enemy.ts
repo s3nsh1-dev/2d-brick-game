@@ -4,6 +4,7 @@ import { Health } from '../components/Health';
 import { BALANCE } from '../constants/balance';
 import { Depth } from '../constants/depths';
 import { AnimState, frameTextureKey } from '../core/animKeys';
+import { damageTint } from '../core/color';
 import type { EnemyDefinition } from '../data/schema';
 
 // Any enemy. Holds its own state and nothing else — it does not know where the player is or
@@ -52,6 +53,19 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     return this.knockbackRemaining > 0;
   }
 
+  /**
+   * How hurt this enemy looks. Recomputed on damage, not per frame.
+   *
+   * Presentation living on the entity, for the same reason the hit frame does: it is this
+   * enemy's own state, not a service acting on it. Deleting `VfxSystem` must leave the game
+   * unadorned but still able to show that a brute has taken twenty hits — which, at 6× HP,
+   * is the difference between a readable board and two hundred identical squares.
+   */
+  private applyDamageTint(): void {
+    const ratio = this.health.max <= 0 ? 0 : this.health.current / this.health.max;
+    this.setTint(damageTint(ratio, BALANCE.vfx.enemyDamageTintFloor));
+  }
+
   /** `maxHp` and `speed` are already scaled; the definition supplies everything else. */
   public spawn(
     x: number,
@@ -64,6 +78,10 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     this.contactCooldown = 0;
     this.knockbackRemaining = 0;
     this.health.reset(maxHp);
+
+    // A pooled enemy carries the last one's tint, so a fresh brute would otherwise spawn
+    // looking half dead. Cleared before the body is enabled, not after.
+    this.clearTint();
 
     // A pooled enemy is reused across types, and the frames a brute plays are not the
     // frames a swarmer plays.
@@ -83,6 +101,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   public takeDamage(amount: number): void {
     this.health.damage(amount);
     this.animator.playOnce(AnimState.HIT);
+    this.applyDamageTint();
   }
 
   public despawn(): void {

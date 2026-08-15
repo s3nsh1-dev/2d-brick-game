@@ -33,6 +33,12 @@ export class SpawnSystem implements System {
     this.entrySpawned = new Array<number>(widestWave).fill(0);
 
     this.definitions = new Map(enemyData.enemies.map((enemy) => [enemy.id, enemy]));
+
+    // Inert at its default of 1. See `BALANCE.debug.startWave` for why it exists at all.
+    this.waveIndex = Math.min(
+      Math.max(0, BALANCE.debug.startWave - 1),
+      this.waves.waves.length - 1,
+    );
   }
 
   /** 1-based, for display. */

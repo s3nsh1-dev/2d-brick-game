@@ -19,6 +19,22 @@ export function fadeIn(scene: Phaser.Scene): void {
 }
 
 /**
+ * Blooms a scene up out of the accent colour instead of out of the dark.
+ *
+ * This is what makes a level-up feel like a different event from a kill. A kill is particles
+ * and a freeze; taking damage is a red flash and a shake; a level is the screen going bright
+ * for a moment. Three moments, three signatures, none of them borrowed from another.
+ *
+ * It belongs to the scene that opens rather than to `VfxSystem` because the run is paused the
+ * instant a level lands, and a camera effect on a paused scene stops mid-effect and stays
+ * there — a stuck accent wash over the whole arena until the player picks a card.
+ */
+export function bloomIn(scene: Phaser.Scene): void {
+  const { r, g, b } = Phaser.Display.Color.IntegerToRGB(BALANCE.palette.uiAccent);
+  scene.cameras.main.fadeIn(BALANCE.ui.transition.bloomMs, r, g, b);
+}
+
+/**
  * Fades out, then starts `key`.
  *
  * Guarded against a second call while a fade is already running: the menu and the game-over

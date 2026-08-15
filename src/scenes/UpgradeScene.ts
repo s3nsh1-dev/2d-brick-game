@@ -5,6 +5,7 @@ import { eventBus } from '../core/EventBus';
 import { getUpgradeData, type UpgradeDefinition } from '../data/schema';
 import { addScrim } from '../ui/backdrop';
 import { Label, LabelVariant } from '../ui/Label';
+import { bloomIn } from '../ui/transitions';
 import { UpgradeCard } from '../ui/UpgradeCard';
 
 export interface UpgradeSceneData {
@@ -89,5 +90,7 @@ export class UpgradeScene extends Phaser.Scene {
 
     this.input.keyboard?.on(Phaser.Input.Keyboard.Events.ANY_KEY_DOWN, this.handleKey);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.shutdown);
+
+    bloomIn(this);
   }
 }

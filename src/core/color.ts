@@ -11,3 +11,24 @@ export function toCssColor(value: number): string {
   const clamped = Math.max(0, Math.min(0xffffff, Math.round(value)));
   return `#${clamped.toString(16).padStart(6, '0')}`;
 }
+
+/**
+ * A multiply tint that reads as "hurt" on any base colour.
+ *
+ * Red is left untouched and green and blue are pulled down as health falls, so a damaged
+ * enemy goes darker *and* redder whatever colour it started as. That matters because the
+ * three enemy types are red, pink and purple: a plain grey darkening would be nearly
+ * invisible on the red one, and a red overlay would be invisible on it too.
+ *
+ * Multiplicative rather than additive because that is what `setTint` does — it cannot make a
+ * sprite brighter than its texture, only darker, so the effect has to live in what it removes.
+ *
+ * @param ratio Health remaining, 0–1. Values outside the range are clamped.
+ * @param floor How much green and blue survive at zero health. 0 would be pure red.
+ */
+export function damageTint(ratio: number, floor: number): number {
+  const health = Math.max(0, Math.min(1, ratio));
+  const channel = Math.round(255 * (floor + (1 - floor) * health));
+
+  return (0xff << 16) | (channel << 8) | channel;
+}

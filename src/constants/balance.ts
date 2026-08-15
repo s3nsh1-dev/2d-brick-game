@@ -276,6 +276,33 @@ export const BALANCE = {
     /** The one texture every emitter draws, tinted per effect. */
     sparkSize: 4,
 
+    /**
+     * How much green and blue survive in an enemy tinted at zero health.
+     *
+     * The readable range is what this buys: a brute at 6× HP takes twenty hits, and without
+     * it every one of those hits leaves an identical square. Low enough to read across a
+     * crowd, high enough that a nearly-dead enemy is still clearly visible on a dark floor.
+     */
+    enemyDamageTintFloor: 0.34,
+
+    /**
+     * What one frame is allowed to draw. Stage 2's effects were built against a handful of
+     * enemies; at wave 8 a single frame can contain forty deaths, and forty bursts is both
+     * unreadable and expensive.
+     *
+     * The events still fire and the gameplay still resolves — only the drawing is capped,
+     * which is why this belongs to presentation and changes no outcome.
+     */
+    budget: {
+      burstsPerFrame: 6,
+      sparksPerFrame: 10,
+      /**
+       * Damage numbers started per frame. Player damage is exempt: it is the one number the
+       * player must never miss, and it fires at most once per contact interval anyway.
+       */
+      textsPerFrame: 2,
+    },
+
     hitSpark: {
       count: 4,
       speedMin: 60,
@@ -369,6 +396,8 @@ export const BALANCE = {
       // the player pays it twice on every restart.
       inMs: 220,
       outMs: 200,
+      /** The level-up bloom. Shorter still: it lands on a screen the player is reading. */
+      bloomMs: 260,
     },
 
     hud: {
@@ -405,5 +434,14 @@ export const BALANCE = {
 
   debug: {
     physicsBodies: false,
+    /**
+     * Wave to open a run on. 1 is the shipped behaviour and changes nothing.
+     *
+     * It exists because invariant 20 requires a measurement, and the thing worth measuring —
+     * two hundred enemies — is four minutes of play away. A number here makes that
+     * measurement repeatable by whoever reads the figures next, rather than something that
+     * needed a scratch patch and cannot be checked.
+     */
+    startWave: 1,
   },
 } as const;

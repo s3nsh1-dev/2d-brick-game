@@ -42,9 +42,28 @@ export class VfxSystem implements System {
   private readonly enemyDamageCss = toCssColor(BALANCE.vfx.floatingText.color);
   private readonly playerDamageCss = toCssColor(BALANCE.vfx.floatingText.playerDamageColor);
 
+  /**
+   * What this frame has already drawn. Reset at the top of `update`.
+   *
+   * The window is one frame rather than one second because that is where the problem is: a
+   * wave 8 frame can contain forty deaths, and the next frame usually contains none. A
+   * per-second budget would smear the cap across the quiet frames and still let the loud
+   * one through.
+   */
+  private burstsThisFrame = 0;
+  private sparksThisFrame = 0;
+  private textsThisFrame = 0;
+
   private readonly handleEnemyDamaged = (x: number, y: number, amount: number): void => {
-    this.hitSpark.explode(BALANCE.vfx.hitSpark.count, x, y);
-    this.showText(x, y, amount, this.enemyDamageCss);
+    if (this.sparksThisFrame < BALANCE.vfx.budget.sparksPerFrame) {
+      this.sparksThisFrame += 1;
+      this.hitSpark.explode(BALANCE.vfx.hitSpark.count, x, y);
+    }
+
+    if (this.textsThisFrame < BALANCE.vfx.budget.textsPerFrame) {
+      this.textsThisFrame += 1;
+      this.showText(x, y, amount, this.enemyDamageCss);
+    }
   };
 
   /**
@@ -72,6 +91,11 @@ export class VfxSystem implements System {
   };
 
   private readonly handleEnemyDied = (x: number, y: number): void => {
+    if (this.burstsThisFrame >= BALANCE.vfx.budget.burstsPerFrame) {
+      return;
+    }
+
+    this.burstsThisFrame += 1;
     this.deathBurst.explode(BALANCE.vfx.deathBurst.count, x, y);
   };
 
@@ -86,6 +110,9 @@ export class VfxSystem implements System {
     camera.shake(shake.durationMs, shake.intensity);
     camera.flash(flash.durationMs, this.flashColor.r, this.flashColor.g, this.flashColor.b);
 
+    // Exempt from the per-frame text budget. It is bounded by the per-enemy contact interval
+    // rather than by how many enemies are on screen, and it is the one number a player must
+    // never miss because a crowd was being noisy in the same frame.
     this.showText(x, y, amount, this.playerDamageCss);
   };
 
@@ -123,6 +150,13 @@ export class VfxSystem implements System {
   }
 
   public update(dt: number): void {
+    // Reset here rather than at the end of the frame: Phaser steps the physics world after
+    // `GameScene.update` returns, so every collision — and therefore every effect event —
+    // lands between one call to this method and the next.
+    this.burstsThisFrame = 0;
+    this.sparksThisFrame = 0;
+    this.textsThisFrame = 0;
+
     const texts = this.texts.active;
 
     // Backwards, because `release` swap-removes from this same array.
