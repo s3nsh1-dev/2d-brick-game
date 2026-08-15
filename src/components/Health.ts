@@ -19,17 +19,23 @@ export class Health {
   }
 
   public get isDead(): boolean {
-    throw new Error('not implemented');
+    return this.currentHp <= 0;
   }
 
   /** Non-positive amounts are ignored. Health floors at zero, it does not go negative. */
   public damage(amount: number): void {
-    throw new Error('not implemented');
+    if (amount <= 0) {
+      return;
+    }
+    this.currentHp = Math.max(0, this.currentHp - amount);
   }
 
   /** Non-positive amounts are ignored. Health caps at `max`. */
   public heal(amount: number): void {
-    throw new Error('not implemented');
+    if (amount <= 0) {
+      return;
+    }
+    this.currentHp = Math.min(this.currentMax, this.currentHp + amount);
   }
 
   /**
@@ -37,6 +43,9 @@ export class Health {
    * that scale their HP — reallocating a Health per spawn would allocate in the hot path.
    */
   public reset(max?: number): void {
-    throw new Error('not implemented');
+    if (max !== undefined) {
+      this.currentMax = max;
+    }
+    this.currentHp = this.currentMax;
   }
 }

@@ -1,35 +1,120 @@
 {
   "waves": [
     {
-      "durationSeconds": 25,
+      "durationSeconds": 22,
       "spawns": [
-        { "enemy": "grunt", "count": 12, "intervalSeconds": 1.6, "hpScale": 1, "speedScale": 1 }
+        { "enemy": "grunt", "count": 12, "intervalSeconds": 1.5, "hpScale": 1, "speedScale": 1 }
+      ]
+    },
+    {
+      "durationSeconds": 26,
+      "spawns": [
+        { "enemy": "grunt", "count": 24, "intervalSeconds": 0.6, "hpScale": 1, "speedScale": 1 },
+        { "enemy": "swarmer", "count": 6, "intervalSeconds": 3.5, "hpScale": 1, "speedScale": 1 }
+      ]
+    },
+    {
+      "durationSeconds": 28,
+      "spawns": [
+        { "enemy": "grunt", "count": 34, "intervalSeconds": 0.45, "hpScale": 1.1, "speedScale": 1 },
+        { "enemy": "swarmer", "count": 8, "intervalSeconds": 3, "hpScale": 1, "speedScale": 1 },
+        { "enemy": "brute", "count": 2, "intervalSeconds": 9, "hpScale": 1, "speedScale": 1 }
       ]
     },
     {
       "durationSeconds": 30,
       "spawns": [
-        { "enemy": "grunt", "count": 20, "intervalSeconds": 1.2, "hpScale": 1.2, "speedScale": 1.05 }
+        { "enemy": "grunt", "count": 34, "intervalSeconds": 0.62, "hpScale": 1.15, "speedScale": 1.05 },
+        { "enemy": "swarmer", "count": 12, "intervalSeconds": 2.2, "hpScale": 1, "speedScale": 1.05 },
+        { "enemy": "brute", "count": 1, "intervalSeconds": 14, "hpScale": 1.1, "speedScale": 1 }
       ]
     },
     {
-      "durationSeconds": 30,
+      "durationSeconds": 32,
       "spawns": [
-        { "enemy": "grunt", "count": 28, "intervalSeconds": 0.95, "hpScale": 1.5, "speedScale": 1.1 }
+        { "enemy": "grunt", "count": 40, "intervalSeconds": 0.58, "hpScale": 1.25, "speedScale": 1.1 },
+        { "enemy": "swarmer", "count": 18, "intervalSeconds": 1.6, "hpScale": 1, "speedScale": 1.1 },
+        { "enemy": "brute", "count": 2, "intervalSeconds": 11, "hpScale": 1.15, "speedScale": 1 }
       ]
     },
     {
-      "durationSeconds": 35,
+      "durationSeconds": 34,
       "spawns": [
-        { "enemy": "grunt", "count": 30, "intervalSeconds": 0.85, "hpScale": 1.8, "speedScale": 1.15 },
-        { "enemy": "grunt", "count": 10, "intervalSeconds": 2.5, "hpScale": 3, "speedScale": 0.7 }
+        { "enemy": "grunt", "count": 44, "intervalSeconds": 0.6, "hpScale": 1.4, "speedScale": 1.15 },
+        { "enemy": "swarmer", "count": 28, "intervalSeconds": 1, "hpScale": 1.05, "speedScale": 1.15 },
+        { "enemy": "brute", "count": 2, "intervalSeconds": 13, "hpScale": 1.3, "speedScale": 1.05 }
+      ]
+    },
+    {
+      "durationSeconds": 36,
+      "spawns": [
+        { "enemy": "grunt", "count": 50, "intervalSeconds": 0.52, "hpScale": 1.55, "speedScale": 1.2 },
+        { "enemy": "swarmer", "count": 40, "intervalSeconds": 0.75, "hpScale": 1.15, "speedScale": 1.2 },
+        { "enemy": "brute", "count": 3, "intervalSeconds": 10, "hpScale": 1.45, "speedScale": 1.05 }
+      ]
+    },
+    {
+      "durationSeconds": 38,
+      "spawns": [
+        { "enemy": "grunt", "count": 58, "intervalSeconds": 0.45, "hpScale": 1.8, "speedScale": 1.25 },
+        { "enemy": "swarmer", "count": 60, "intervalSeconds": 0.55, "hpScale": 1.25, "speedScale": 1.25 },
+        { "enemy": "brute", "count": 5, "intervalSeconds": 6.5, "hpScale": 1.65, "speedScale": 1.1 }
       ]
     },
     {
       "durationSeconds": 40,
       "spawns": [
-        { "enemy": "grunt", "count": 45, "intervalSeconds": 0.6, "hpScale": 2.2, "speedScale": 1.2 },
-        { "enemy": "grunt", "count": 14, "intervalSeconds": 2, "hpScale": 4, "speedScale": 0.8 }
+        { "enemy": "grunt", "count": 68, "intervalSeconds": 0.4, "hpScale": 2.2, "speedScale": 1.3 },
+        { "enemy": "swarmer", "count": 90, "intervalSeconds": 0.42, "hpScale": 1.4, "speedScale": 1.3 },
+        { "enemy": "brute", "count": 8, "intervalSeconds": 5, "hpScale": 1.9, "speedScale": 1.1 }
+      ]
+    },
+    {
+      "durationSeconds": 45,
+      "spawns": [
+        { "enemy": "grunt", "count": 100, "intervalSeconds": 0.34, "hpScale": 2.8, "speedScale": 1.4 },
+        { "enemy": "swarmer", "count": 150, "intervalSeconds": 0.28, "hpScale": 1.7, "speedScale": 1.4 },
+        { "enemy": "brute", "count": 14, "intervalSeconds": 3.6, "hpScale": 2.3, "speedScale": 1.15 }
+      ]
+    },
+    {
+      "durationSeconds": 46,
+      "spawns": [
+        { "enemy": "grunt", "count": 105, "intervalSeconds": 0.34, "hpScale": 3.1, "speedScale": 1.42 },
+        { "enemy": "swarmer", "count": 155, "intervalSeconds": 0.28, "hpScale": 1.8, "speedScale": 1.42 },
+        { "enemy": "brute", "count": 16, "intervalSeconds": 2.8, "hpScale": 2.5, "speedScale": 1.16 }
+      ]
+    },
+    {
+      "durationSeconds": 48,
+      "spawns": [
+        { "enemy": "grunt", "count": 110, "intervalSeconds": 0.33, "hpScale": 3.4, "speedScale": 1.44 },
+        { "enemy": "swarmer", "count": 165, "intervalSeconds": 0.27, "hpScale": 1.9, "speedScale": 1.45 },
+        { "enemy": "brute", "count": 18, "intervalSeconds": 2.6, "hpScale": 2.7, "speedScale": 1.18 }
+      ]
+    },
+    {
+      "durationSeconds": 50,
+      "spawns": [
+        { "enemy": "grunt", "count": 115, "intervalSeconds": 0.32, "hpScale": 3.7, "speedScale": 1.46 },
+        { "enemy": "swarmer", "count": 175, "intervalSeconds": 0.26, "hpScale": 2, "speedScale": 1.48 },
+        { "enemy": "brute", "count": 20, "intervalSeconds": 2.4, "hpScale": 2.9, "speedScale": 1.2 }
+      ]
+    },
+    {
+      "durationSeconds": 52,
+      "spawns": [
+        { "enemy": "grunt", "count": 120, "intervalSeconds": 0.31, "hpScale": 4, "speedScale": 1.48 },
+        { "enemy": "swarmer", "count": 185, "intervalSeconds": 0.25, "hpScale": 2.2, "speedScale": 1.5 },
+        { "enemy": "brute", "count": 22, "intervalSeconds": 2.3, "hpScale": 3.2, "speedScale": 1.22 }
+      ]
+    },
+    {
+      "durationSeconds": 60,
+      "spawns": [
+        { "enemy": "grunt", "count": 130, "intervalSeconds": 0.3, "hpScale": 4.4, "speedScale": 1.5 },
+        { "enemy": "swarmer", "count": 200, "intervalSeconds": 0.24, "hpScale": 2.4, "speedScale": 1.55 },
+        { "enemy": "brute", "count": 24, "intervalSeconds": 2.4, "hpScale": 3.6, "speedScale": 1.25 }
       ]
     }
   ]

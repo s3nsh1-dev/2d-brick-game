@@ -23,6 +23,14 @@ function makePool(capacity: number): {
   return { pool: new ObjectPool<Item>(capacity, create, reset), create, reset };
 }
 
+/** Narrows away the pool's `undefined` without the non-null assertion AGENTS.md restricts. */
+function acquired<T>(item: T | undefined): T {
+  if (item === undefined) {
+    throw new Error('expected the pool to hand out an object');
+  }
+  return item;
+}
+
 describe('ObjectPool', () => {
   it('constructs every object up front, so no update path ever allocates', () => {
     const { pool, create } = makePool(5);
@@ -65,9 +73,8 @@ describe('ObjectPool', () => {
   it('resets on release and makes the object available again', () => {
     const { pool, reset } = makePool(2);
 
-    const item = pool.acquire();
-    expect(item).toBeDefined();
-    pool.release(item as Item);
+    const item = acquired(pool.acquire());
+    pool.release(item);
 
     expect(reset).toHaveBeenCalledWith(item);
     expect(pool.activeCount).toBe(0);
@@ -78,10 +85,9 @@ describe('ObjectPool', () => {
   it('ignores a release of an object that is already free', () => {
     const { pool, reset } = makePool(2);
 
-    const item = pool.acquire();
-    expect(item).toBeDefined();
-    pool.release(item as Item);
-    pool.release(item as Item);
+    const item = acquired(pool.acquire());
+    pool.release(item);
+    pool.release(item);
 
     expect(reset).toHaveBeenCalledTimes(1);
     expect(pool.freeCount).toBe(2);
@@ -106,17 +112,14 @@ describe('ObjectPool', () => {
     const { pool } = makePool(6);
 
     for (let i = 0; i < 6; i += 1) {
-      const item = pool.acquire();
-      expect(item).toBeDefined();
-      (item as Item).live = true;
+      acquired(pool.acquire()).live = true;
     }
 
     const seen: number[] = [];
     for (let i = pool.active.length - 1; i >= 0; i -= 1) {
-      const item = pool.active[i];
-      expect(item).toBeDefined();
-      seen.push((item as Item).id);
-      pool.release(item as Item);
+      const item = acquired(pool.active[i]);
+      seen.push(item.id);
+      pool.release(item);
     }
 
     expect(seen).toHaveLength(6);

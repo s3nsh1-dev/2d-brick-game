@@ -1,135 +1,539 @@
-# Stage 2 kickstart prompt — paste into a fresh agent session
+# Stage 2 — the brief
+
+**Self-contained.** Pointing a fresh session at this file, with no other context, is enough to
+start work correctly. Everything you need to know about where the project stands, what is
+already built, what Stage 2 must deliver, and what "done" means is below.
 
 ---
 
-**Stage 2** of the `arena` project. Stage 1 is complete and playable.
+## 0. Orient
 
-Read `AGENTS.md`, `CLAUDE.md`, and `ARCHITECTURE.md` before doing anything. Then read `src/systems/System.ts`, `src/core/EventBus.ts`, `src/scenes/GameScene.ts`, and `src/entities/Enemy.ts` so you are working against the code that exists rather than the code you would have written.
+Read, in this order, before writing anything:
 
-**Do not rebuild, re-scaffold, or restructure Stage 1.** Stage 2 extends it. Every invariant in `AGENTS.md` still holds and Stage 2 adds four more (below).
+1. `AGENTS.md` — stack, directory map, invariants 1–10. The authority. If any other document
+   contradicts it, it wins.
+2. `CLAUDE.md` — how to work in this repo.
+3. `ARCHITECTURE.md` — the authority on the current stage, the frame pipeline, the scene
+   lifecycle, and the event catalogue.
 
-## Precondition — verify before writing anything
+Then read the code you are about to change, rather than planning against a summary:
+`src/systems/System.ts`, `src/core/EventBus.ts`, `src/core/ObjectPool.ts`,
+`src/scenes/GameScene.ts`, `src/scenes/PreloadScene.ts`, `src/entities/Enemy.ts`,
+`src/data/schema.ts`, `src/constants/balance.ts`, `src/constants/keys.ts`.
+
+**Do not rebuild, re-scaffold, or restructure Stage 1.** Stage 2 extends it. Every invariant
+in `AGENTS.md` still holds, and Stage 2 adds five more (§6).
+
+### Precondition — verify before writing anything
 
 ```bash
-npm run typecheck && npm run lint && npm run test && npm run build && npm run dev
+npm run typecheck && npm run lint && npm run test && npm run build
 ```
 
-If any of these fail, stop and report the failures. Do not begin Stage 2 on a broken baseline, and do not "fix it while you're in there" — I will clear them separately.
+Then, separately, `npm run dev` and confirm an empty browser console. It is a long-running
+server, so it cannot be the last link in an `&&` chain — the chain would never return.
 
-## Stage 2 goal
+Baseline as of 2026-08-14: `typecheck` ✅ · `lint` ✅ 0 warnings · `test` ✅ 50 passed across
+5 files · `build` ✅ 0 warnings · console ✅ empty.
 
-Stage 1 proved the architecture. Stage 2 proves it **survives contact with content**: art, sound, effects, enemy variety, and progression. If any of the additions below require editing a Stage 1 scene file, that is a finding — report it before working around it.
+If any of these fail, stop and report. Do not begin Stage 2 on a broken baseline, and do not
+"fix it while you're in there".
 
-## New dependencies
+---
 
-None expected. If you believe one is required, stop and make the case first.
+## 1. Status ledger — what exists, what does not
 
-## Scope
+**Stage 2 is complete as of 2026-08-14 — all five passes.** Verify in one command:
 
-### In
-
-| Area        | Deliverable                                                                                                        |
-| ----------- | ------------------------------------------------------------------------------------------------------------------ |
-| Art         | Texture atlas replacing coloured rectangles; idle + walk + hit animations for player and enemies                   |
-| Audio       | SFX for shoot, hit, enemy death, player damage, pickup, level-up; one looping music track; master/SFX/music volume |
-| VFX         | Hit spark, death burst, pickup sparkle; floating damage numbers                                                    |
-| Game feel   | Screen shake on player damage, hit-stop on enemy death, damage flash tint, knockback                               |
-| Enemies     | Two additional types (a fast/fragile swarmer and a slow/tanky brute), fully data-driven                            |
-| Progression | XP curve, level-up, pick-1-of-3 upgrade offers, stat modifiers                                                     |
-| Persistence | Versioned localStorage save: high score, best wave, total runs                                                     |
-| Flow        | Pause scene; upgrade scene that suspends gameplay                                                                  |
-
-### Out — Stage 3, do not build, do not stub, do not add hooks for
-
-Level editor, ECS refactor, web workers, pathfinding beyond direct chase, backend or leaderboard, boss enemies, multiple weapons, mobile controls, settings menu, achievements, i18n.
-
-## Files Stage 2 adds
-
-```
-src/
-├─ constants/
-│  ├─ keys.ts                  EXTEND  + AtlasKey, AnimKey, AudioKey
-│  └─ balance.ts               EXTEND  + enemy stats, upgrade values, xp curve, volumes, shake params
-├─ core/                       (still zero Phaser imports — this is the invariant Stage 2 stress-tests)
-│  ├─ SaveStore.ts             NEW  versioned, zod-validated, storage-agnostic via an injected adapter
-│  ├─ StatBlock.ts             NEW  base + flat modifiers + multiplicative modifiers, computed on read
-│  └─ xpCurve.ts               NEW  pure level/threshold math
-├─ components/
-│  ├─ Stats.ts                 NEW  owns the entity's StatBlocks, applies upgrade modifiers
-│  ├─ Animator.ts              NEW  thin typed wrapper over Phaser animation state
-│  └─ Health.ts                EXTEND  emits knockback + flash events on damage
-├─ entities/
-│  ├─ Enemy.ts                 REFACTOR  constructed from an EnemyDefinition, not hardcoded stats
-│  └─ FloatingText.ts          NEW  pooled damage numbers
-├─ systems/
-│  ├─ AudioSystem.ts           NEW  subscribes to the bus, owns all sound playback
-│  ├─ VfxSystem.ts             NEW  subscribes to the bus, owns particles + camera effects
-│  └─ ProgressionSystem.ts     NEW  XP accumulation, level-up detection, upgrade offer generation
-├─ scenes/
-│  ├─ PreloadScene.ts          EXTEND  atlas + audio + animation registration
-│  ├─ UpgradeScene.ts          NEW  launched over a paused GameScene
-│  └─ PauseScene.ts            NEW
-└─ data/
-   ├─ enemies.json             NEW   three definitions
-   ├─ upgrades.json            NEW
-   ├─ waves.json               EXTEND  waves reference enemy ids
-   └─ schema.ts                EXTEND  zod schemas for all of the above
+```bash
+grep -rlniE "upgrade|audiosystem|vfxsystem|statblock|savestore|xpcurve|animator|particle|shake|knockback|localstorage" src/
 ```
 
-## New invariants — Stage 2 adds these to `AGENTS.md`
+Every term now hits. `typecheck` ✅ · `lint` ✅ 0 warnings · `test` ✅ 127 passed across 9
+files · `build` ✅ 0 warnings · console ✅ empty.
 
-11. **Presentation is event-driven and one-directional.** No gameplay code calls `sound.play()`, `camera.shake()`, or spawns a particle. Gameplay emits a typed event; `AudioSystem` and `VfxSystem` are the only subscribers that touch presentation APIs. Deleting both systems must leave the game fully playable, silent and unadorned.
+### 1a. Foundations already in place — build on these, do not rebuild them
 
-12. **Emitters and sounds are created once, at system init.** Never per-hit, never per-frame. `VfxSystem` holds a fixed set of pre-configured emitters and re-triggers them at a position. Same for `Phaser.Sound` instances.
+These are Stage 1 deliverables that Stage 2 assumes. Each one is why a Stage 2 item is smaller
+than it sounds.
 
-13. **Identical SFX inside a short window are coalesced.** Killing forty enemies in one frame plays one death sound, not forty. Throttle window lives in `balance.ts`.
+| ✅ | Already true | Where | Why it matters to Stage 2 |
+|---|---|---|---|
+| ✅ | Enemy stats are supplied per spawn, not hardcoded | `Enemy.spawn(x, y, maxHp, speed)` | Pass A widens a signature; it does not introduce the idea |
+| ✅ | Every `waves.json` spawn entry already names an enemy id | `spawnEntrySchema.enemy` | The `enemy` field exists. Pass A widens the **schema**, not the data shape |
+| ✅ | Per-wave `hpScale` / `speedScale` multipliers | `spawnEntrySchema` | The escalation mechanism exists; only the numbers are flat |
+| ✅ | Generic pooling with fixed capacity | `core/ObjectPool.ts` | `FloatingText` needs a pool, not a pooling system |
+| ✅ | Typed event bus with 5 events, positional-primitive payloads | `core/EventBus.ts` | Presentation subscribes here. Adding an event is one line in `GameEvents` |
+| ✅ | Boot-time texture baking with `Graphics#generateTexture` | `PreloadScene.bakeSquareTexture` | The art pipeline already exists. Pass B generalises it, see §4 |
+| ✅ | zod validation at boot, `.parse()` not `.safeParse()` | `data/schema.ts`, `PreloadScene` | `enemies.json` and `upgrades.json` follow an established path |
+| ✅ | `Health` is a dependency-free value object | `components/Health.ts` | Deliberately unchanged in Stage 2. See §5 |
+| ✅ | Restart safety verified by listener census | `GameScene.shutdown` | New systems must extend the census, not invent a pattern |
 
-14. **Stats are computed, never mutated.** `StatBlock` keeps an immutable base plus a list of modifiers and recomputes on read. An upgrade appends a modifier. Removing a modifier must restore the exact original value — no accumulated float drift.
+### 1b. Stage 2 deliverables — **all delivered**
 
-15. **Save data carries a schema version.** `SaveStore` validates with zod on read; on version mismatch it migrates if it can and discards if it cannot. Corrupt or foreign localStorage must never crash the boot sequence.
+Tick a row in this table **in the same commit** as the code that lands it.
 
-## Phaser 4 notes
+| Status | Deliverable | Pass | Evidence |
+|---|---|---|---|
+| ✅ | `enemies.json` + `EnemyDefinition` + its zod schema | A | Landed 2026-08-14 |
+| ✅ | `enemyIdSchema` widened from a literal to a union validated against `enemies.json` | A | Landed 2026-08-14 — the wave schema is now a factory over the parsed ids |
+| ✅ | Per-definition texture, body size and colour | A | Landed 2026-08-14 — `Enemy.spawn` takes a definition; `BALANCE.enemy.size`/`.color` are gone |
+| ✅ | Swarmer (fast, fragile) and brute (slow, tanky) as **definitions** | A | Landed 2026-08-14 |
+| ✅ | **A real difficulty ramp and a real fail state** | A | Landed 2026-08-14 — 10 waves; a stationary player dies in wave 3, measured in-browser |
+| ✅ | Per-frame textures + idle / walk / hit animations | B | Landed 2026-08-14 — five frames per actor, baked at boot |
+| ✅ | `Animator` component | B | Landed 2026-08-14 |
+| ✅ | SFX: shoot, hit, enemy death, player damage, pickup, level-up | B | Landed 2026-08-14 — all six synthesised, no audio files |
+| ✅ | One looping music track; master / SFX / music volume | B | Landed 2026-08-14 |
+| ✅ | Hit spark, death burst, pickup sparkle | B | Landed 2026-08-14 — three emitters, built once |
+| ✅ | Floating damage numbers | B | Landed 2026-08-14 — pooled |
+| ✅ | Screen shake on player damage, damage flash tint | B | Landed 2026-08-14 |
+| ✅ | Knockback on hit | C | Landed 2026-08-14 |
+| ✅ | Hit-stop on enemy death | C | Landed 2026-08-14 |
+| ✅ | XP curve and levels | D | Landed 2026-08-14 |
+| ✅ | `StatBlock` + `Stats` (computed, never mutated) | D | Landed 2026-08-14 |
+| ✅ | `upgrades.json` + pick-1-of-3 offers | D | Landed 2026-08-14 — six upgrades |
+| ✅ | `UpgradeScene` | D | Landed 2026-08-14 — over a paused GameScene |
+| ✅ | Versioned, zod-validated `SaveStore`: high score, best wave, total runs | E | Landed 2026-08-14 — v1→v2 migration included |
+| ✅ | `PauseScene` | E | Landed 2026-08-14 |
+| ✅ | `AGENTS.md` carries invariants 11–15 | E | Landed 2026-08-14 |
+| ✅ | `ARCHITECTURE.md` updated: stage table, event catalogue, "which file do I touch" | E | Landed 2026-08-14 |
 
-- Check `node_modules/phaser/skills/` for the particles, audio, animation, and camera subsystems before writing against them. Your recall for these is Phaser 3 and particles in particular changed substantially — the emitter is now a Game Object created with `this.add.particles(x, y, texture, config)`.
-- Browser autoplay policy blocks audio until a user gesture. Handle the unlock explicitly in `MenuScene`; do not assume `sound.play()` works at boot.
-- `scene.pause()` halts the update loop but leaves the scene rendered; `scene.sleep()` also stops rendering. `UpgradeScene` and `PauseScene` want `pause`, so the frozen game stays visible underneath.
-- Verify tween and timer behaviour across pause. A `Phaser.Time.TimerEvent` owned by a paused scene must not fire.
+**Partial credit is not a status.** A row was ☐ until its code was merged and all four checks
+passed.
 
-## Working protocol — three passes, stop between each
+---
 
-**Pass A — data-driven enemies.** Add `enemies.json`, its schema, refactor `Enemy` to build from a definition, add the swarmer and brute, and update `waves.json` to reference enemy ids. No art, no audio.
+## 2. What Stage 2 is
 
-This pass is the architecture test. Report explicitly: **which scene or system files did you have to edit?** The Stage 1 target was zero. If it was not zero, tell me which files and why before continuing — I would rather fix the seam now than paper over it.
+Stage 1 proved the architecture. **Stage 2 proves it survives contact with content**: art,
+sound, effects, enemy variety, and progression.
 
-**Pass B — presentation.** Atlas, animations, `Animator`, `AudioSystem`, `VfxSystem`, floating text, screen shake, hit-stop, damage flash, knockback. Gameplay behaviour must not change in this pass — same damage, same speeds, same wave timing.
+Stage 2 is **additive**. It adds things on top of the existing structure and changes none of
+it. The one place it deliberately changes gameplay is Pass C, and that pass exists separately
+precisely so the change is visible. If any addition below requires editing a Stage 1 scene
+file, that is a finding — report it before working around it. (One such edit is expected and
+named in §7, Pass A.)
 
-Use placeholder art you generate procedurally or simple shapes packed into an atlas. Do not download assets, and do not ask me to supply art before you can proceed — the atlas _pipeline_ is the deliverable, not the pixels.
+By contrast, Stage 3 changes what the program *is*. Do not borrow from it. See §10.
 
-**Pass C — progression and flow.** `StatBlock`, `Stats`, `xpCurve`, `ProgressionSystem`, `upgrades.json`, `UpgradeScene`, `PauseScene`, `SaveStore`.
+---
 
-## Tests
+## 3. The mandatory balance fix — **done in Pass A**
 
-Vitest still covers `src/core/` and `src/components/` only. Stage 2 requires new specs for:
+**This was previously optional. It is not.**
 
-- `StatBlock` — modifier stacking order, add/remove round-trip returns the exact base value, multiplicative and flat modifiers compose correctly.
-- `xpCurve` — monotonic, no off-by-one at level boundaries.
-- `SaveStore` — round-trip, version migration, corrupt JSON, absent key, quota-exceeded on write.
+> **Correction, 2026-08-14.** The premise below was measured and is wrong in detail. On the
+> Stage 1 table a stationary player did **not** survive past wave 5 at full health: it died
+> in **wave 4**, having already lost 40 HP during wave 3 (measured in-browser, and
+> reproduced independently in a Node model of the frame loop). The conclusion still held —
+> dying in wave 4 of a 5-wave table that then plateaus is not a ramp — so the fix was done
+> as written. The old claim is left below only so the correction has something to point at.
 
-`SaveStore` takes a storage adapter as a constructor argument precisely so it is testable without `localStorage`. Do not import `window` into `core/`.
+Standing completely still, the player does not die. Auto-aim clears the swarm at roughly the
+rate it spawns: the weapon does ~37 dps against wave-5 grunts at 20–80 effective HP, arriving
+one per 0.6s from a spawn ring ~640px out, so almost nothing reaches contact range. A
+stationary player survived past wave 5 at full health in testing.
 
-## Definition of done
+Pass D ships an XP curve and upgrade pacing, and both are answers to a difficulty ramp.
+**There is currently no ramp to answer.** Tuning upgrades against a flat curve produces
+numbers that mean nothing, and you will not find out until you have built the whole
+progression system on top of them. So the curve is fixed first, in Pass A, before any of it.
 
-- All four commands pass clean: `typecheck`, `lint`, `test`, `build`.
-- `npm run dev` runs with an empty browser console.
-- Adding a fourth enemy type requires editing `enemies.json` and `waves.json` and nothing else.
-- Deleting `AudioSystem` and `VfxSystem` from the system array in `GameScene` leaves a fully playable game.
-- Clearing localStorage and reloading works. Writing garbage into the save key and reloading works.
-- 60fps with 200 enemies, 100 projectiles, and particles active.
-- `ARCHITECTURE.md` updated: stage table marks Stage 2 complete, event catalogue extended with the new presentation events, and the "where do I add X" section covers a new enemy, a new upgrade, and a new sound.
-- `AGENTS.md` updated with invariants 11–15.
+Targets, so the fix is checkable rather than a matter of taste — **all four met, see the
+measurements recorded after each**:
 
-## How to work
+- A player who never moves **dies by wave 3**. ✅ Measured in-browser: died in wave 3 with 20
+  enemies alive. The Node model agrees on all 5 seeds.
+- A player who moves competently but takes no upgrades **dies somewhere in waves 5–8**. ✅
+  Modelled, not played: a kiting bot in the Node model dies in waves 5–6 across 5 seeds. A
+  human is likely a wave or two later, still inside the band. This is the one target
+  verified by proxy rather than by hand.
+- The wave table **extends past 5 and escalates on the last entry** rather than holding. Ten
+  waves is a reasonable target. ✅ Ten waves; wave 10 runs at roughly 7× the weapon's clear
+  rate, against wave 9's 4×.
+- Escalation comes from `waves.json` — counts, intervals, `hpScale`, `speedScale`, and the mix
+  of enemy definitions. Base stats stay in `balance.ts`. That split is architectural; do not
+  blur it to make the tuning easier.
 
-State each file's job in one line before its code. Comment the _why_. If Pass A reveals that the Stage 1 architecture leaks, say so plainly rather than absorbing the damage silently — that finding is more valuable to me than a clean-looking diff.
+Do this **after** the swarmer and brute exist, in the same pass. Enemy variety is the lever the
+curve is tuned with, and tuning grunt-only waves twice is wasted work.
+
+---
+
+## 4. Two corrections to this document's own scope, from reading the Phaser 4 skills
+
+The scope table used to say "texture atlas" and "handle the audio unlock explicitly". Both were
+written against assumptions that the shipped `node_modules/phaser/skills/` contradict.
+
+### 4a. No packed atlas. Bake one texture per frame.
+
+An atlas exists to stop batch breaks across **many separate source images**. This project has
+no source images. All art is baked at boot from a single `Graphics` object into solid-colour
+squares, and packing four squares into a strip saves nothing measurable.
+
+Verified in the shipped skills:
+
+- `graphics-and-shapes/SKILL.md` documents `generateTexture(key, width, height)` in v4 — the
+  call `PreloadScene` already uses. It notes the Canvas backing, which is why gradient fills
+  do not survive it. Solid fills do.
+- `animations/SKILL.md` documents an explicit frame array where **each frame names its own
+  texture key**: `frames: [{ key: 'fighter', frame: 'punch1', duration: 50 }, …]`. So an
+  animation can be composed from separately baked textures with no atlas and no spritesheet.
+- `generateFrameNumbers` is for spritesheets, `generateFrameNames` for atlases. Neither is
+  needed here.
+- The skills do **not** document `TextureManager.addSpriteSheet` or `addAtlas`. If you want
+  the packed route anyway, verify those exist in `node_modules/phaser/types/` first — and
+  expect them to buy nothing at this scale. Sprite-count batching is a Stage 3 problem.
+
+**So the Pass B deliverable is the pipeline, not the pixels:** a boot-time loop that bakes N
+frames per enemy definition, an `AnimKey` map, `anims.create` calls composing those frames, and
+an `Animator` component wrapping playback. That is the thing worth building. Do not download
+assets, and do not ask for art before you can proceed.
+
+`TextureKey` in `constants/keys.ts` currently names the four baked squares. `AnimKey` and a
+per-definition frame-key scheme supersede it — **delete `TextureKey`, do not leave both.**
+
+### 4b. Do not hand-roll the audio unlock, and do not ship audio files.
+
+`audio-and-sound/SKILL.md` is explicit: *"You do not need to handle unlocking manually."*
+Phaser listens for `touchstart`/`touchend`/`mousedown`/`mouseup`/`keydown` on `document.body`
+and resumes the `AudioContext` itself. The previous instruction to unlock explicitly in
+`MenuScene` was wrong — delete that idea. If you need to know when audio is ready, read
+`this.sound.locked` and listen once for the `UNLOCKED` event.
+
+For the sounds themselves, the same principle as the textures applies: **synthesize them at
+boot, ship no files.** The skill documents `this.sound.decodeAudio(key, base64StringOrArrayBuffer)`,
+and a batch form `this.sound.decodeAudio([{ key, data }, …])`. Write short PCM buffers into a
+WAV container in portable TypeScript, decode them at boot, and the repo stays asset-free —
+which is currently one of its properties and worth keeping.
+
+The synthesis itself has no Phaser in it, so it belongs in `core/`. That makes it unit-testable
+and it is a genuine, non-speculative use of invariant 1.
+
+---
+
+## 5. Corrections against the Stage 1 code that actually shipped
+
+The original file map predates Stage 1. Three of its entries describe a codebase that is not
+in this repo.
+
+- **`waves.json` already references enemy ids.** Every spawn entry carries `"enemy": "grunt"`
+  today, because Stage 1's definition of done required a second enemy type to cost one JSON
+  entry. The schema types it as a single-member literal; Stage 2 widens that to a union
+  validated against `enemies.json`. Smaller than "EXTEND" implies.
+- **`Enemy` does not have hardcoded stats.** It already takes them per spawn:
+  `spawn(x, y, maxHp, speed)`. The real refactor is widening that signature to a definition and
+  moving **texture and body size** — currently fixed at construction from `balance.ts` — to be
+  per-type.
+- **`Health` does not emit, and must not start.** It is a dependency-free value object that
+  `Player` and `Enemy` each build with `new Health(max)`, unit-tested with no stubs at all.
+  Giving it an event bus would change every construction site and every spec to no end:
+  `CombatSystem` is already the single place all damage resolves and already emits
+  `player:health-changed` and `enemy:died`. Knockback, flash and damage-number events belong
+  there.
+
+---
+
+## 6. New invariants — Stage 2 adds these to `AGENTS.md`
+
+**Exactly five, numbered 11–15.** Stage 3 numbers its own from 16 and depends on that count. If
+you end up adding a sixth, say so explicitly so Stage 3 can be renumbered rather than left
+with a collision.
+
+11. **Presentation is event-driven and one-directional.** No gameplay code calls
+    `sound.play()`, `camera.shake()`, or spawns a particle. Gameplay emits a typed event;
+    `AudioSystem` and `VfxSystem` are the only subscribers that touch presentation APIs.
+    Deleting both systems must leave the game fully playable, silent and unadorned.
+
+12. **Emitters and sounds are created once, at system init.** Never per-hit, never per-frame.
+    `VfxSystem` holds a fixed set of pre-configured emitters and re-triggers them at a
+    position. Same for `Phaser.Sound` instances.
+
+13. **Identical SFX inside a short window are coalesced.** Killing forty enemies in one frame
+    plays one death sound, not forty. The throttle window lives in `balance.ts`.
+
+14. **Stats are computed, never mutated.** `StatBlock` keeps an immutable base plus a list of
+    modifiers and recomputes on read. An upgrade appends a modifier. Removing a modifier must
+    restore the exact original value — no accumulated float drift.
+
+15. **Save data carries a schema version.** `SaveStore` validates with zod on read; on version
+    mismatch it migrates if it can and discards if it cannot. Corrupt or foreign
+    `localStorage` must never crash the boot sequence.
+
+---
+
+## 7. The passes
+
+Five passes. **One pass per session. Stop between each.** Do not prepare for a later pass
+inside an earlier one — no `upgrades?: Upgrade[]` field "so Pass D is easier", no
+`// TODO: particles here`.
+
+### Pass A — content and curve
+
+`enemies.json` and its schema; `EnemyDefinition`; `Enemy` refactored to build from a
+definition; swarmer and brute; `enemyIdSchema` widened; **the difficulty ramp of §3**. No art,
+no audio.
+
+**This pass is the architecture test.** Report explicitly: *which scene or system files did you
+have to edit?*
+
+Be precise about what "zero scene edits" can mean, because the original phrasing set a target
+that contradicts itself. `GameScene.create()` builds exactly one enemy pool from
+`() => new Enemy(this)`, and one physics group to match. So:
+
+- A new enemy **class** needs its own pool and group, which is a `GameScene` edit. Every time.
+  That is not a seam you can close without a registry, and a registry for three types is the
+  speculative generality this project exists to avoid.
+- A new enemy **definition**, served by the one `Enemy` class, needs no `GameScene` edit at all.
+
+The definition of done — *adding a fourth enemy type requires editing `enemies.json` and
+`waves.json` and nothing else* — is reachable only on the second route, so take it. **The
+swarmer and brute are definitions, not classes.** Note that this contradicts the old file map's
+implied "one entity file per enemy type"; the DoD wins.
+
+**Expect exactly one unavoidable scene edit.** `PreloadScene` bakes four fixed textures from
+`balance.ts`. It has to loop over the enemy definitions instead. That is a one-time change —
+after it, a fourth enemy needs no code — but it is a scene edit and must be reported as one
+rather than hidden.
+
+`ARCHITECTURE.md`'s "which file do I touch" table currently says a new enemy type is *not* a
+cheap operation. Pass A is what makes that row false; update it in the same commit.
+
+**Done when:** a fourth enemy type is two JSON edits; a stationary player dies by wave 3; all
+four checks pass.
+
+**Landed 2026-08-14. The architecture test came out at two scene edits, not one:**
+
+- `PreloadScene` — expected and predicted above. It now loops the definitions instead of
+  baking four fixed textures.
+- `GameScene` — **not** predicted. `SpawnSystem` has to resolve `entry.enemy` to a
+  definition, and the only thing that can hand it the definitions is the scene that builds
+  it, so its constructor took one more argument. The pooled `Enemy` also needs a real
+  texture at construction, before any wave has asked for a type, so the pool factory passes
+  the first definition's id. Both are one-time; neither recurs when a fourth type is added.
+- **Zero system edits beyond `SpawnSystem`**, which is the file whose job this is.
+
+The definition of done holds: adding a fourth enemy type is an entry in `enemies.json` and a
+spawn entry in `waves.json`, with no code change of any kind.
+
+### Pass B — presentation
+
+Baked frame textures, `anims.create` definitions, `Animator`, `AudioSystem`, `VfxSystem`,
+`FloatingText`, screen shake, damage flash. Read §4 before starting — two of these are not the
+things this document originally said they were.
+
+**Gameplay behaviour must not change in this pass.** Same damage, same speeds, same wave
+timing, same run length. That claim is checkable precisely because knockback and hit-stop are
+held back to Pass C.
+
+New bus events will be needed — damage dealt with a position, level-up, pickup. Add them to the
+`GameEvents` map, and add a row to the catalogue in `ARCHITECTURE.md` for each. Payloads stay
+positional primitives: an event carrying an entity would force `core/` to name a type from
+`entities/`, and Phaser would leak into the one directory that must stay portable.
+
+**Done when:** deleting `AudioSystem` and `VfxSystem` from the system array in `GameScene`
+leaves a fully playable, silent, unadorned game with identical timing.
+
+### Pass C — game feel
+
+Knockback and hit-stop, both in `CombatSystem`. Small — an hour or so. It is a separate pass
+because it is the one place Stage 2 deliberately changes gameplay.
+
+Two items on the original "game feel" list are not presentation, and the no-behaviour-change
+rule collides with them head-on:
+
+- **Hit-stop** freezes the simulation. That *is* a change to timing, and it cannot live in
+  `VfxSystem` without breaking invariant 11 in spirit — the game would play at a different
+  tempo with the system present.
+- **Knockback** moves physics bodies, which changes where enemies are. That is gameplay.
+
+The dividing line is **not** "does it look like juice". It is **"does deleting it change where
+anything ends up"**. Screen shake, flash, particles and floating text do not; knockback and
+hit-stop do. So they live in `CombatSystem`, driven by the damage resolution that already
+exists there.
+
+**Done when:** the feel changes, the four checks pass, and you can state in one sentence why
+each of the four Pass B effects stayed in `VfxSystem` and these two did not.
+
+### Pass D — progression
+
+`core/xpCurve.ts`, `core/StatBlock.ts`, `components/Stats.ts`, `systems/ProgressionSystem.ts`,
+`data/upgrades.json` and its schema, `scenes/UpgradeScene.ts`.
+
+`UpgradeScene` launches over a **paused** `GameScene`. `scene.pause()` halts the update loop
+but leaves the scene rendered; `scene.sleep()` also stops rendering. You want `pause`, so the
+frozen game stays visible underneath. Verify that a `Phaser.Time.TimerEvent` owned by a paused
+scene does not fire, and that tweens behave across the pause.
+
+Upgrade-offer generation will introduce new `Math.random` call sites. Keep every one of them
+inside `ProgressionSystem` — see §9, item 5.
+
+**Done when:** levelling up offers three upgrades, taking one visibly changes a stat, and
+adding a fourth upgrade is a single `upgrades.json` entry.
+
+### Pass E — persistence, flow, and documentation
+
+`core/SaveStore.ts`, `scenes/PauseScene.ts`, and the documentation updates that close the stage.
+
+`SaveStore` takes a **storage adapter as a constructor argument**, precisely so it is testable
+without `localStorage`. Do not import `window` into `core/`; the ESLint rule scoped to
+`src/core/**/*.ts` bans Phaser, but portability is the actual requirement and the DOM breaks it
+just as thoroughly.
+
+**Done when:** clearing `localStorage` and reloading works; writing garbage into the save key
+and reloading works; `AGENTS.md` carries invariants 11–15; `ARCHITECTURE.md` is updated; and
+§1b of this file is all ✅.
+
+---
+
+## 8. Tests
+
+Vitest covers `src/core/` and `src/components/`. Stage 2 requires new specs for:
+
+- **`StatBlock`** — modifier stacking order; add-then-remove round-trips to the exact base
+  value; flat and multiplicative modifiers compose correctly.
+- **`xpCurve`** — monotonic; no off-by-one at level boundaries.
+- **`SaveStore`** — round-trip; version migration; corrupt JSON; absent key; quota-exceeded on
+  write.
+- **The audio synthesis from §4b** — it is pure buffer maths in `core/`, so it tests like any
+  other pure function.
+
+`vitest.config.ts` is `environment: 'node'` deliberately. Anything you add to `core/` must pass
+there, with no DOM shim.
+
+---
+
+## 9. The Stage 3 readiness gate
+
+**This is the section that makes Stage 2 sufficient.** Stage 3 moves the entire simulation out
+of Phaser. That plan assumes seven things, all of which Stage 2 either preserves or provides.
+Check every one before declaring Stage 2 complete — each failure here is paid for with interest
+in Stage 3.
+
+1. **`enemies.json`, `upgrades.json` and their zod schemas exist**, and are the only source of
+   enemy and upgrade content. Stage 3's editor pass edits these files; without them it has
+   nothing to edit but waves.
+
+2. **`src/core/` still has zero Phaser imports and zero DOM references.** Stage 2 adds
+   `SaveStore`, `StatBlock`, `xpCurve` and the audio synthesis to it. Every one must run in a
+   bare Node test. This is not a style rule in Stage 3 — the entire stage is built on it.
+
+3. **Every gameplay rule lives in `src/systems/` or `src/components/`, and systems import
+   entities with `import type` only.** `CombatSystem`, `PickupSystem`, `SpawnSystem` and
+   `ProgressionSystem` have **zero runtime Phaser imports**; their only entity coupling is
+   erased at compile time. Stage 3 moves those files wholesale.
+
+   > **Correction, 2026-08-14.** The check written here was
+   > `grep -rn "from 'phaser'" src/systems/     # must stay empty`, and it cannot stay empty:
+   > invariant 11 requires `AudioSystem` and `VfxSystem` to be *the only* code touching
+   > presentation APIs, and this brief puts both in `src/systems/`. Touching the sound
+   > manager, the camera and the particle system means importing Phaser. The two rules were
+   > in direct conflict, and the presentation systems are the ones that must win, because
+   > nothing else may hold that dependency.
+   >
+   > The check that carries the original intent is the gameplay systems only:
+   >
+   > ```bash
+   > grep -rn "from 'phaser'" src/systems/ | grep -v "AudioSystem\|VfxSystem"   # must stay empty
+   > ```
+   >
+   > Stage 3 moves the four gameplay systems and leaves the two presentation systems where
+   > they are — they are view code by definition, and the sim/view split is the whole point.
+
+4. **Presentation only ever subscribes.** Invariant 11 is not decoration — Stage 3's sim/view
+   split is that invariant taken to its conclusion. If gameplay code calls `camera.shake()`
+   directly anywhere, Stage 3 has to unpick it before it can start.
+
+5. **Every `Math.random` call site is inside a system and countable.** Today there are exactly
+   five, all in `SpawnSystem.spawn()` — the edge picker and four coordinate rolls. Stage 3
+   routes them through a seeded generator. Stage 2 will legitimately add more in
+   `ProgressionSystem` (upgrade offers). That is fine. What is not fine is randomness in an
+   entity or a scene, where the seeding pass cannot reach it cleanly.
+
+   Randomness in `VfxSystem` — particle jitter, spark angles — is exempt and should stay
+   exempt, because it decides no gameplay outcome. Say so in a comment where you write it, or
+   the Stage 3 seeding pass will waste a session deciding whether it matters.
+
+6. **No `Date.now` or `performance.now` in any path that decides an outcome.** There are none
+   in `src/` today. `SaveStore` may want a timestamp for save metadata; that is fine, it is
+   persistence, not simulation. Keep it out of gameplay.
+
+7. **Pool sizes stay fixed and nothing calls `new` in an update path.** Stage 3 rebuilds the
+   world as flat arrays; a codebase that already never allocates mid-frame makes that
+   mechanical instead of archaeological.
+
+If all seven hold, Stage 3 can begin at Pass A on the day Stage 2 lands.
+
+**Re-checked 2026-08-14, when Stage 2 landed. All seven hold**, with one correction recorded
+in item 3 above:
+
+1. ✅ `enemies.json`, `upgrades.json` and their zod schemas are the only source of enemy and
+   upgrade content.
+2. ✅ `src/core/` has zero Phaser imports and zero DOM references. `SaveStore`, `StatBlock`,
+   `xpCurve` and `audioSynth` all run in the bare Node test environment — the only mention of
+   `window` in that folder is a comment explaining why the storage adapter is injected.
+3. ✅ …for the four gameplay systems. See the correction: the two presentation systems import
+   Phaser by necessity and stay behind when Stage 3 moves the rest.
+4. ✅ Presentation only ever subscribes. No gameplay file calls `sound.play`, `camera.shake`
+   or `add.particles`; the check is a grep over `entities/`, `components/` and the three
+   Stage 1 systems.
+5. ✅ Six `Math.random` call sites, all inside systems: five in `SpawnSystem.spawn` and one in
+   `ProgressionSystem.pickOffers`. The particle jitter that would have been a seventh is
+   Phaser's own, inside emitter configs, and is exempt — it decides no gameplay outcome.
+6. ✅ No `Date.now` or `performance.now` anywhere in `src/`. `SaveStore` chose not to stamp a
+   timestamp at all, so even the permitted use does not exist.
+7. ✅ Pool sizes are fixed and nothing allocates in an update path. `FloatingText` joined the
+   pooled types; `ProgressionSystem` allocates only on a level-up, which is not a frame path.
+
+---
+
+## 10. Scope boundary — what Stage 2 does not touch
+
+Stage 3, and explicitly **not** Stage 2. Do not build, do not stub, do not add hooks for:
+
+npm workspaces or any package split · moving game rules out of Phaser · replacing Arcade
+Physics with a custom integrator or broadphase · seeded RNG or determinism work · fixed
+timestep and accumulator · replay recording · ECS or `bitecs` · web workers · pathfinding of
+any kind beyond direct chase · arena obstacles or walls · level editor · backend, server, or
+leaderboard.
+
+And not planned for any stage: boss enemies · multiple weapons · mobile controls · settings
+menu · achievements · i18n · online multiplayer.
+
+`BALANCE.time.maxDeltaSeconds` stays exactly as it is. Stage 3 replaces it with an accumulator
+clamp; Stage 2 does not anticipate that.
+
+---
+
+## 11. Phaser 4 notes
+
+Your recall for Phaser is overwhelmingly v3, and v4 is a rewrite. Assume it is stale.
+
+- `node_modules/phaser/skills/` ships **28 skill files**. For Stage 2 the relevant ones are
+  `animations`, `audio-and-sound`, `particles`, `cameras`, `tweens`, `time-and-timers`,
+  `scenes`, `graphics-and-shapes`, `render-textures` and `data-manager`. **Read the one you
+  need before writing against that subsystem.**
+- `node_modules/phaser/types/` is ground truth when a skill and your memory disagree.
+- Particles changed substantially. The emitter is now a Game Object created with
+  `this.add.particles(x, y, texture, config)`, added straight to the display list. There is no
+  separate manager and no `createEmitter`. (Verified against the shipped `particles` skill.)
+- `Graphics#generateTexture` survives in v4 even though `Create.GenerateTexture` and
+  `TextureManager.generate` were removed. That is why the Stage 1 art pipeline works at all.
+- `import * as Phaser from 'phaser'` — the default export was removed.
+- Confidently writing a v4 API you have not verified is worse than saying "let me check the
+  types first".
+
+---
+
+## 12. How to work
+
+State each file's job in one line before its code. Comment the *why*, never the *what*.
+
+Tick the §1b ledger in the same commit as the code. A stale status table in the file that
+exists to report status is worse than no table.
+
+If a pass reveals that the Stage 1 architecture leaks, **say so plainly** rather than absorbing
+the damage silently. That finding is worth more than a clean-looking diff — §4 and §5 of this
+document are both the product of exactly that, and both saved real work.
 
 ---

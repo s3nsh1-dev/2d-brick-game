@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { EventBus } from '../core/EventBus';
 
-type TestEvents = {
+interface TestEvents {
   ping: [];
   scored: [points: number, total: number];
   named: [who: string];
-};
+}
 
 describe('EventBus', () => {
   it('delivers an emit to a listener with its payload', () => {

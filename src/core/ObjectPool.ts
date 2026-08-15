@@ -43,16 +43,45 @@ export class ObjectPool<T> {
 
   /** Takes an object from the pool, or undefined when the pool is exhausted. */
   public acquire(): T | undefined {
-    throw new Error('not implemented');
+    const item = this.free.pop();
+    if (item === undefined) {
+      return undefined;
+    }
+
+    this.activeItems.push(item);
+    return item;
   }
 
   /** Resets an object and returns it to the pool. Releasing a free object is a no-op. */
   public release(item: T): void {
-    throw new Error('not implemented');
+    const index = this.activeItems.indexOf(item);
+    if (index === -1) {
+      return;
+    }
+
+    // Swap-remove: pull the tail into the hole, unless the hole was the tail. O(1) removal
+    // at the cost of order, which nothing here depends on.
+    const tail = this.activeItems.pop();
+    if (tail !== undefined && index < this.activeItems.length) {
+      this.activeItems[index] = tail;
+    }
+
+    this.reset(item);
+    this.free.push(item);
   }
 
   /** Releases every active object. Called on scene shutdown. */
   public releaseAll(): void {
-    throw new Error('not implemented');
+    for (let i = this.activeItems.length - 1; i >= 0; i -= 1) {
+      const item = this.activeItems[i];
+      if (item === undefined) {
+        continue;
+      }
+
+      this.reset(item);
+      this.free.push(item);
+    }
+
+    this.activeItems.length = 0;
   }
 }

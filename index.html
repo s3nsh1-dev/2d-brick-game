@@ -3,24 +3,173 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>arena</title>
+
+    <title>Arena — survive fifteen waves</title>
+    <meta
+      name="description"
+      content="A 2D top-down arena survivor. Move, fire automatically, take upgrades, and clear fifteen waves. No downloads, no accounts."
+    />
+    <meta name="theme-color" content="#0a0a11" />
+    <meta name="color-scheme" content="dark" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Arena — survive fifteen waves" />
+    <meta
+      property="og:description"
+      content="A 2D top-down arena survivor. Move, fire automatically, take upgrades, and clear fifteen waves."
+    />
+    <meta name="twitter:card" content="summary" />
+
+    <!--
+      The favicon is an inline SVG rather than a file, because this project ships no assets:
+      every frame of art is baked from a Graphics object at boot and every sound is
+      synthesised. A 404 for a missing icon would be the only asset request the game makes.
+      It is the player's own square, in the player's own colour, on the arena's backdrop.
+    -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230a0a11'/><rect x='9' y='9' width='14' height='14' fill='%236ce5b1'/></svg>"
+    />
+
     <style>
       html,
       body {
         margin: 0;
         padding: 0;
         height: 100%;
-        background: #101014;
+        background: #0a0a11;
         overflow: hidden;
+        color: #e8e8f0;
+        font-family: monospace;
       }
+      /*
+        `position: fixed; inset: 0` rather than `width/height: 100%`, and it is load-bearing.
+
+        Phaser's scale manager decides how large to draw the game by measuring this element
+        with `getBoundingClientRect()`. A percentage height only resolves if every ancestor
+        has a definite height, and when that chain breaks the element shrink-wraps its own
+        content — so the manager measures the canvas it just sized, concludes the parent is
+        exactly the game's size, and scales by 1. That is the bug where the game sat at a
+        native 1280x720 in the top-left of a 1440p window. A fixed element is the viewport by
+        construction and cannot collapse.
+
+        The canvas is then placed by flexbox rather than by `CENTER_BOTH`, which centres by
+        writing margins the manager computes from the same measurement. One mechanism, and
+        the one the browser cannot get wrong; the config says `NO_CENTER` to match, because
+        two would both apply and push the canvas back off centre.
+      */
       #game {
-        width: 100%;
-        height: 100%;
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #game canvas {
+        /* Inline is the default, and an inline element sits on a text baseline with
+           descender space beneath it — enough to letterbox a window that should fit
+           exactly. `flex: none` stops the row from shrinking a canvas that already
+           has the exact size the scale manager asked for. */
+        display: block;
+        flex: none;
+      }
+      /* Both overlays sit under the same rules: centred, full-bleed, above the canvas. */
+      #boot,
+      #failure {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        background: #0a0a11;
+        text-align: center;
+        padding: 24px;
+      }
+      #failure {
+        display: none;
+      }
+      .title {
+        font-size: 28px;
+        letter-spacing: 0.18em;
+      }
+      .dim {
+        font-size: 14px;
+        color: #9a9aae;
+        max-width: 40ch;
+        line-height: 1.6;
       }
     </style>
   </head>
   <body>
     <div id="game"></div>
+
+    <!-- Replaced by the canvas the moment Phaser has one. Without it the player watches a
+         black rectangle for however long the module graph takes to parse. -->
+    <div id="boot">
+      <div class="title">ARENA</div>
+      <div class="dim">loading…</div>
+    </div>
+
+    <!-- The one user-facing error string in the project. If the boot sequence throws — a
+         malformed data file, a texture bake that fails — the player would otherwise get a
+         black rectangle and a console they will not open. -->
+    <div id="failure">
+      <div class="title">SOMETHING WENT WRONG</div>
+      <div class="dim">
+        The game could not start. Reloading the page usually fixes it; if it does not, your
+        browser may not support WebGL.
+      </div>
+      <div class="dim" id="failure-detail"></div>
+    </div>
+
+    <noscript>
+      <div class="dim" style="padding: 24px">This game needs JavaScript to run.</div>
+    </noscript>
+
     <script type="module" src="/src/main.ts"></script>
+
+    <script>
+      (function () {
+        var boot = document.getElementById('boot');
+        var failure = document.getElementById('failure');
+        var detail = document.getElementById('failure-detail');
+        var shown = false;
+
+        function fail(message) {
+          if (shown) return;
+          shown = true;
+          if (boot) boot.remove();
+          failure.style.display = 'flex';
+          // The message, not a stack: enough for a bug report, useless as noise.
+          detail.textContent = message ? String(message).slice(0, 200) : '';
+        }
+
+        window.addEventListener('error', function (event) {
+          fail(event.message || (event.error && event.error.message));
+        });
+        window.addEventListener('unhandledrejection', function (event) {
+          fail(event.reason && event.reason.message);
+        });
+
+        // The canvas appearing is the only honest signal that boot succeeded: Phaser creates
+        // it once the renderer is up, which is after the module graph has parsed and run.
+        var game = document.getElementById('game');
+        var observer = new MutationObserver(function () {
+          if (game.querySelector('canvas')) {
+            observer.disconnect();
+            if (boot) boot.remove();
+          }
+        });
+        observer.observe(game, { childList: true, subtree: true });
+
+        // A module that never executes fires no error event of its own, so nothing above
+        // would ever run. If there is still no canvas by now, something is wrong.
+        setTimeout(function () {
+          if (!game.querySelector('canvas')) fail('The game did not start in time.');
+        }, 20000);
+      })();
+    </script>
   </body>
 </html>

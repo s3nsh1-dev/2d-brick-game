@@ -89,7 +89,11 @@ describe('nearest', () => {
   });
 
   it('returns undefined for no candidates', () => {
-    expect(nearest(0, 0, [], 100)).toBeUndefined();
+    // Annotated so T infers as Positioned; a bare [] infers never and the result stops
+    // being a value expression.
+    const none: Positioned[] = [];
+
+    expect(nearest(0, 0, none, 100)).toBeUndefined();
   });
 
   it('measures from the given origin, not from zero', () => {

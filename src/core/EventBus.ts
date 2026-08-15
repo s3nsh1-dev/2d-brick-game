@@ -6,13 +6,8 @@
 // leak in through the type graph. Keeping payloads primitive is also what stops HUDScene
 // from ever holding a Player.
 
-/**
- * Event name to payload tuple. Every bus event in the game is declared here.
- *
- * A type alias rather than an interface: only aliases get the implicit index signature that
- * lets them satisfy `EventMap`.
- */
-export type GameEvents = {
+/** Event name to payload tuple. Every bus event in the game is declared here. */
+export interface GameEvents {
   /** A wave began. Carries the 1-based wave number. */
   'wave:started': [waveNumber: number];
   /** The player's health changed, by damage or by a run restarting. */
@@ -21,43 +16,130 @@ export type GameEvents = {
   'enemy:died': [x: number, y: number];
   /** The player's XP total changed. */
   'xp:changed': [total: number];
-  /** The run is over. Carries the final stats GameOverScene displays. */
-  'run:ended': [waveReached: number, xpTotal: number];
-};
+  /**
+   * Every wave has been announced and every scheduled spawn has been issued.
+   *
+   * Not the end of the run: the last enemies are still walking in. `CombatSystem` owns the
+   * decision about when a cleared board becomes a win, because it owns the deaths.
+   */
+  'waves:cleared': [];
+  /**
+   * The run is over. Carries the final stats GameOverScene displays, and whether the player
+   * finished the last wave or was finished by it.
+   */
+  'run:ended': [waveReached: number, xpTotal: number, victory: boolean];
 
-export type EventMap = Record<string, readonly unknown[]>;
+  // Presentation events. Nothing in the gameplay path listens to any of these — they exist
+  // so AudioSystem and VfxSystem can react without gameplay knowing either exists.
+  //
+  // Each fires at most a few times a second: `weapon:fired` is bounded by the weapon
+  // cooldown, `enemy:damaged` by the projectiles that cooldown produces, `player:damaged`
+  // by the per-enemy contact interval. That is why they are safe on a bus whose `emit`
+  // allocates a rest-argument array, and why the collision callbacks next to them are still
+  // direct calls: those fire per contact per frame.
+
+  /**
+   * An enemy entered the world at this position, which is on the ring *outside* the arena.
+   *
+   * Emitted for the telegraph and nothing else: `VfxSystem` marks the wall the enemy is
+   * about to cross. Bounded by the spawn intervals in `waves.json`, which are the slowest
+   * clocks in the game — the busiest wave emits this a handful of times a second.
+   */
+  'enemy:spawned': [x: number, y: number];
+  /** An enemy took damage at this position. */
+  'enemy:damaged': [x: number, y: number, amount: number];
+  /** The player took damage at this position. */
+  'player:damaged': [x: number, y: number, amount: number];
+  /** A projectile left the weapon at this position. */
+  'weapon:fired': [x: number, y: number];
+  /** A gem was picked up at this position. */
+  'gem:collected': [x: number, y: number];
+  /** A health pickup was taken at this position. */
+  'pickup:health': [x: number, y: number];
+
+  /**
+   * The player reached a new level, and these are the upgrades on offer.
+   *
+   * The offers are three positional ids rather than an array because pick-1-of-3 is the
+   * design, not a parameter, and because an array payload would be one allocation per level
+   * on a bus whose whole point is that payloads are primitives.
+   */
+  'level:up': [level: number, offerA: string, offerB: string, offerC: string];
+  /** The player picked one of the offers. Carries the upgrade id. */
+  'upgrade:chosen': [upgradeId: string];
+
+  /**
+   * A setting changed. Carries nothing: the settings store is the single source, and every
+   * listener reads it directly rather than being handed a copy that could go stale.
+   *
+   * It exists because volume has to change *audibly*, at once, from an options screen opened
+   * over a paused run — and a paused scene's systems do not tick. A bus listener is a plain
+   * function call and does not care that the scene beneath it is frozen.
+   */
+  'options:changed': [];
+}
+
+/**
+ * The constraint an event map must satisfy, written against its own keys.
+ *
+ * The obvious spelling — `Record<string, readonly unknown[]>` — quietly forces every event
+ * map to be a type alias, because only aliases get an implicit index signature. Phrasing it
+ * as `keyof T` lets a plain `interface` satisfy it, which is what `GameEvents` above is.
+ */
+export type EventMap<T> = Record<keyof T, readonly unknown[]>;
 
 export type Listener<TArgs extends readonly unknown[]> = (...args: TArgs) => void;
 
 /**
- * A listener whose parameters are `never`, which every concrete listener is assignable to.
- * Used as the storage type so one Map can hold listeners of differing signatures without
- * `any` appearing anywhere.
+ * Storage, keyed by event name so each Set remembers the exact signature it holds.
+ *
+ * A `Map<keyof TEvents, Set<SomeWidenedListener>>` would need a cast in `emit` to narrow a
+ * listener back to its payload; a partial mapped type carries that relationship in the type
+ * itself, so this class contains no assertions at all.
  */
-type StoredListener = (...args: never[]) => void;
+type ListenerMap<TEvents extends EventMap<TEvents>> = {
+  [K in keyof TEvents]?: Set<Listener<TEvents[K]>>;
+};
 
-export class EventBus<TEvents extends EventMap> {
-  private readonly listeners = new Map<keyof TEvents, Set<StoredListener>>();
+export class EventBus<TEvents extends EventMap<TEvents>> {
+  private listeners: ListenerMap<TEvents> = {};
 
   public on<K extends keyof TEvents>(event: K, listener: Listener<TEvents[K]>): void {
-    throw new Error('not implemented');
+    let set = this.listeners[event];
+    if (set === undefined) {
+      set = new Set<Listener<TEvents[K]>>();
+      this.listeners[event] = set;
+    }
+
+    // A Set, so subscribing the same function twice still delivers once.
+    set.add(listener);
   }
 
   public off<K extends keyof TEvents>(event: K, listener: Listener<TEvents[K]>): void {
-    throw new Error('not implemented');
+    this.listeners[event]?.delete(listener);
   }
 
   public emit<K extends keyof TEvents>(event: K, ...args: TEvents[K]): void {
-    throw new Error('not implemented');
+    const set = this.listeners[event];
+    if (set === undefined) {
+      return;
+    }
+
+    // Iterated directly rather than through a copy, so dispatch allocates nothing. Deleting
+    // from a Set mid-iteration is well defined in JS, which is what a listener that
+    // unsubscribes itself during shutdown relies on.
+    for (const listener of set) {
+      listener(...args);
+    }
   }
 
   /** Drops every listener. Called on scene shutdown so a restart cannot double-subscribe. */
   public clear(): void {
-    throw new Error('not implemented');
+    this.listeners = {};
   }
 
   public listenerCount(event: keyof TEvents): number {
-    throw new Error('not implemented');
+    return this.listeners[event]?.size ?? 0;
   }
 }
 

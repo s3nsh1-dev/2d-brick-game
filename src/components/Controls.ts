@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import type { Vec2 } from '../core/math';
+import { setLength, type Vec2 } from '../core/math';
 
 // WASD input, reduced to a normalised direction.
 //
@@ -27,10 +27,17 @@ export class Controls {
 
   /** Writes the normalised movement direction into `out`. No input writes (0, 0). */
   public readDirection(out: Vec2): Vec2 {
-    throw new Error('not implemented');
+    const x = (this.right.isDown ? 1 : 0) - (this.left.isDown ? 1 : 0);
+    const y = (this.down.isDown ? 1 : 0) - (this.up.isDown ? 1 : 0);
+
+    // Normalising is what stops diagonals from being ~41% faster than the cardinals.
+    return setLength(out, x, y, 1);
   }
 
   public destroy(): void {
-    throw new Error('not implemented');
+    this.up.destroy();
+    this.down.destroy();
+    this.left.destroy();
+    this.right.destroy();
   }
 }
