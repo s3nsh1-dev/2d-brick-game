@@ -203,6 +203,8 @@ npm run typecheck && npm run lint && npm run test && npm run build
 
 ...and the game runs with an empty browser console. "It compiles" is not done. "It renders" is not done.
 
+`.github/workflows/ci.yml` runs those same four, in that order, on every push and pull request. It adds no rules — it enforces this one, which for three stages was enforced by a human remembering. It does **not** deploy; Vercel's Git integration owns that. The split, and the gap it leaves, are documented in `docs/deployment/03-ci-cd.md`.
+
 ## Never
 
 - Never install a dependency without saying why and waiting for approval.

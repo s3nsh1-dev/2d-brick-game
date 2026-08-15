@@ -1,0 +1,61 @@
+# The project's definition of done, enforced by a machine.
+#
+# AGENTS.md has required four checks since Stage 1 and they have only ever been run by a human
+# remembering to run them. This is the same four, in the same order, on every push and every
+# pull request.
+#
+# It deliberately does not deploy. Vercel's Git integration owns that, and duplicating it here
+# would give the project two things that can publish. See docs/deployment/02-ci-cd.md.
+
+name: checks
+
+on:
+  push:
+    branches: [main, 'feature/**']
+  pull_request:
+    branches: [main]
+  # So a red main can be re-run after a flake without an empty commit.
+  workflow_dispatch:
+
+# A second push to the same branch cancels the first. Nothing here has side effects, so the
+# only cost of cancelling is the minutes it saves.
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Matches `engines.node` in package.json. Vite 8 needs 20.19+ or 22.12+, and the
+          # build is the check most likely to notice a mismatch.
+          node-version: '22.x'
+          cache: npm
+
+      # `ci`, not `install`: it installs exactly what package-lock.json pins and fails rather
+      # than silently updating it. A CI run that can change the lockfile is not a check.
+      - name: install
+        run: npm ci
+
+      # Run separately rather than chained with &&, so a failure names which check failed in
+      # the GitHub UI instead of collapsing all four into one red step.
+      - name: typecheck
+        run: npm run typecheck
+
+      - name: lint
+        run: npm run lint
+
+      - name: test
+        run: npm run test
+
+      - name: build
+        run: npm run build

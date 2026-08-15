@@ -15,7 +15,7 @@ month or an agent picking up a task, start here.
 | **Performance** | 59.9 fps mean at 220 enemies, 6.4 draw calls/frame, heap *shrinks* over 133 s. Measured in a production build — the numbers and the method are in [`AGENTS.md`](../AGENTS.md) |
 | **Runtime dependencies** | `phaser@4.2.1`, `zod@4` — nothing else, across all three stages |
 | **Assets** | None at runtime. Every frame is baked and every sound synthesised at boot — no images, no audio files, not even a favicon file. The three PNGs in the repo are README screenshots |
-| **Deployed** | No — **by the owner's decision**, not for want of readiness. The build is deploy-ready and the runbook is [`version3/deployment.md`](version3/deployment.md) |
+| **Deployed** | No — **by the owner's decision**, not for want of readiness. The build is deploy-ready, CI runs the four checks on every push, and the deployment documentation is [`deployment/`](deployment/README.md) |
 
 > All three stages are done. The per-stage development record is [`version1/`](version1/README.md),
 > [`version2/`](version2/README.md) and [`version3/`](version3/README.md).
@@ -87,7 +87,8 @@ These were established by measurement, not inspection. If you change the relevan
 |---|---|---|---|
 | 1 | **Toggling the colourblind palette mid-run repaints only enemies that spawn after it.** Each enemy picks its palette variant when it leaves the pool. | Cosmetic and self-correcting within a few seconds of play. Changing it from the menu is unaffected. | Fixable by re-targeting every live enemy's animator on `options:changed`; deliberately not done, because it adds a live-entity sweep to a system that otherwise only subscribes |
 | 2 | **The "moves competently" difficulty band is still not systematically measured.** The owner has now played the Stage 3 build and reported on it, and waves 11–15 exist because of that; but the only *measured* difficulty fact remains the stationary-player death in wave 3. | Waves 11–15 were designed by curve extension, not by measured clear rate. They may be too easy or too hard for a good player. | Whoever plays it end-to-end and records what happened |
-| 3 | **The game is not deployed.** `docs/STAGE_3_instructions.md` §7 asks for a URL in the README; §6 of the same file, edited later by the owner, says to prepare for deployment without deploying. The later instruction won. | The one line of Stage 3's definition of done that is deliberately unmet. Everything it depends on is done: the build is warning-free, the console is empty in production, the page has its metadata and error boundary, and the runbook is written. | The owner, when they want it public. [`version3/deployment.md`](version3/deployment.md) is the runbook |
+| 3 | **The game is not deployed.** `docs/STAGE_3_instructions.md` §7 asks for a URL in the README; §6 of the same file, edited later by the owner, says to prepare for deployment without deploying. The later instruction won. | The one line of Stage 3's definition of done that is deliberately unmet. Everything it depends on is done: the build is warning-free, the console is empty in production, the page has its metadata and error boundary, `vercel.json` and CI are committed, and the runbook is written. | The owner, when they want it public. [`deployment/`](deployment/README.md) is the documentation |
+| 4 | **CI reports, it does not gate.** GitHub Actions runs the four checks on every push; Vercel's Git integration deploys on the same push. Neither waits for the other, and `vite build` does not typecheck — so a commit that fails `typecheck` can still be published. | Only matters once the project is actually deployed, and only for a direct push to the default branch. | Enable branch protection on `main` requiring the `checks` status. Two minutes, free on public repos — [`deployment/03-ci-cd.md`](deployment/03-ci-cd.md) covers the alternatives and why this is the right one |
 
 None of these block play.
 
@@ -283,6 +284,7 @@ link instead.
 | [`CLAUDE.md`](../CLAUDE.md) | How humans and agents collaborate here | Working practice changes, not code |
 | [`docs/STAGE_2_INSTRUCTIONS.md`](STAGE_2_INSTRUCTIONS.md), [`docs/STAGE_3_instructions.md`](STAGE_3_instructions.md) | The stage briefs — **historical now that both stages are closed** | Never. They record what was asked for |
 | [`docs/KICKSTART.md`](KICKSTART.md) | The original Stage 1 scaffold prompt — **historical** | Never. It is a record of what was asked for, not of what shipped |
+| [`docs/deployment/`](deployment/README.md) | How a commit becomes a URL: the `vercel.json` / Docker / CI decisions, the Vercel deployment logic, the pipeline | Operational and **current**. Update it when the hosting, the pipeline or the build settings change |
 | [`docs/version1/`](version1/README.md), [`version2/`](version2/README.md), [`version3/`](version3/README.md) | The development record, one folder per stage: decisions, rationale, difficulties, lessons | Written at the end of a stage, from what happened. Never edited afterwards except to correct an error. **All three are written; none of them should change again** |
 
 ### The checklist when something lands

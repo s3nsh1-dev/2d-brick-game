@@ -33,15 +33,19 @@ whole control scheme — everything else is on the menu.
 
 The last four are the definition of done. A change is not finished until all four pass.
 
-## Deployment
+## Deployment and CI
 
 **Not deployed** — a deliberate decision by the project's owner, not a gap in readiness. The
 build is deploy-ready: `npm run build` emits static files, there is no backend, no environment
-variable and no server-side anything.
+variable and no server-side anything. `vercel.json` pins the build settings, and
+`.github/workflows/ci.yml` runs the four checks on every push and pull request.
 
-[`docs/version3/deployment.md`](docs/version3/deployment.md) is the runbook — what each of the
-four candidate hosts needs, the one real trap (GitHub Pages serves from a subpath and Vite's
-default `base` breaks there), what to check after a deploy, and how to roll back.
+[`docs/deployment/`](docs/deployment/README.md) is the current documentation: the Vercel
+deployment logic, the pipeline design, and the reasoning behind three decisions —
+**`vercel.json` yes (minimally), Docker no, CI yes** — including the case against the two that
+were built. [`docs/version3/deployment.md`](docs/version3/deployment.md) additionally covers
+Netlify, GitHub Pages and itch.io, and the one real trap between them (Pages serves from a
+subpath, and Vite's default `base` breaks there).
 
 <table>
 <tr>
@@ -60,6 +64,7 @@ Read these in order depending on who you are.
 | **Wanting the current state** | [`docs/STATUS.md`](docs/STATUS.md) | The checkpoint. What works, what is deliberately missing, what is known-broken, and what was never built and why. |
 | **Ready to change code** | [`ARCHITECTURE.md`](ARCHITECTURE.md) | How the parts fit, the event catalogue, and which file to touch for a given change. |
 | **An AI agent picking up work** | [`docs/STATUS.md`](docs/STATUS.md) §5 → [`AGENTS.md`](AGENTS.md) | STATUS tells you where things stand and which traps this project has already fallen into; AGENTS is the authority on the twenty invariants that will get work rejected if broken. |
+| **Shipping or hosting it** | [`docs/deployment/`](docs/deployment/README.md) | How a commit becomes a URL, and why the pipeline is shaped the way it is. |
 | **Curious how it was built** | [`docs/version1/`](docs/version1/README.md) → [`version2/`](docs/version2/README.md) → [`version3/`](docs/version3/README.md) | The development record, one folder per stage: what was decided and why, what went wrong, and what a developer new to 2D games should take from it. |
 
 **The stage briefs** are [`docs/STAGE_2_INSTRUCTIONS.md`](docs/STAGE_2_INSTRUCTIONS.md) and

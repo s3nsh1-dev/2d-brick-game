@@ -1,5 +1,11 @@
 # Deployment runbook
 
+> **Partly superseded.** [`docs/deployment/`](../deployment/README.md) is now the current,
+> operational deployment documentation — it covers `vercel.json`, the CI pipeline and the Vercel
+> specifics that did not exist when this page was written. This page stays because it is the only
+> one that covers **all four candidate hosts**, including the GitHub Pages `base` trap, and
+> because it is part of the Stage 3 record.
+
 **The game is not deployed.** That is the owner's decision, recorded in
 `docs/STAGE_3_instructions.md` §6 and in [`../STATUS.md`](../STATUS.md) §2 issue 3 — not a gap
 in readiness. Everything below is what a deploy needs, written while it was fresh.
