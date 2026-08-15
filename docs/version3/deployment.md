@@ -101,9 +101,13 @@ Then put the URL in `README.md` and remove issue 3 from `docs/STATUS.md` §2.
 ## Rollback
 
 There is no state to migrate and no backend to coordinate with, so rollback is redeploying the
-previous build. On Vercel and Netlify that is promoting the previous deployment in their UI —
-instant, and it does not require the repo. On GitHub Pages it is reverting the commit that
-published.
+previous build. In every case it is done from the host's own dashboard and does not require the
+repo. On GitHub Pages it is reverting the commit that published.
+
+**One correction worth having before you need it:** Vercel's *instant rollback* — `vercel
+rollback <url>`, and the one-click equivalent in the dashboard — is a **Pro/Enterprise
+feature**. On the free Hobby plan you open the deployment you want and hit **Redeploy**, which
+rebuilds and promotes it. Same outcome, one build's worth of latency rather than instant.
 
 **The one thing rollback does not undo:** a save written by a newer version. `SaveStore` is
 versioned for this — an older build reading a newer record fails `safeParse`, discards it, and
